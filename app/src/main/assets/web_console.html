@@ -1,0 +1,1124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>DeckLink — Laptop Control Console</title>
+<style>
+  :root {
+    --bg: #0B0F14;
+    --surface: #111822;
+    --surface-2: #17212E;
+    --border: #263547;
+    --cyan: #22D3EE;
+    --emerald: #10B981;
+    --amber: #F59E0B;
+    --crimson: #EF4444;
+    --ink: #F1F5F9;
+    --muted: #94A3B8;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif;
+    background: radial-gradient(circle at 12% 0%, rgba(34, 211, 238, 0.12), transparent 42%),
+                radial-gradient(circle at 88% 100%, rgba(16, 185, 129, 0.08), transparent 45%),
+                var(--bg);
+    color: var(--ink);
+    min-height: 100vh;
+    line-height: 1.45;
+  }
+  .mono { font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .hidden { display: none !important; }
+
+  /* Auth Gate */
+  .auth-wrap {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .auth-card {
+    width: 100%;
+    max-width: 420px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 32px;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.45);
+  }
+  .brand-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 12px;
+    border-radius: 999px;
+    background: rgba(34, 211, 238, 0.12);
+    border: 1px solid rgba(34, 211, 238, 0.35);
+    color: var(--cyan);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+  .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--emerald);
+    box-shadow: 0 0 10px var(--emerald);
+  }
+  h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 6px; }
+  .sub { color: var(--muted); font-size: 14px; margin-bottom: 22px; }
+  label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }
+  input[type="text"], input[type="password"], input[type="url"], textarea {
+    width: 100%;
+    background: var(--bg);
+    color: var(--ink);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 14px;
+    font-size: 14px;
+    outline: none;
+    transition: border-color .15s;
+  }
+  input:focus, textarea:focus { border-color: var(--cyan); }
+  .pin-input {
+    font-size: 28px !important;
+    text-align: center;
+    letter-spacing: 0.35em;
+    font-weight: 700;
+    margin-bottom: 14px;
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: 1px solid transparent;
+    border-radius: 11px;
+    padding: 10px 15px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    background: var(--surface-2);
+    color: var(--ink);
+    border-color: var(--border);
+    transition: all .15s;
+  }
+  .btn:hover { border-color: var(--cyan); background: #1D2A3A; }
+  .btn-primary { background: var(--cyan); color: #031B22; border-color: var(--cyan); }
+  .btn-primary:hover { background: #38E1FA; }
+  .btn-danger { background: rgba(239, 68, 68, 0.14); color: #FCA5A5; border-color: rgba(239, 68, 68, 0.4); }
+  .btn-danger:hover { background: rgba(239, 68, 68, 0.25); }
+  .btn-emerald { background: rgba(16, 185, 129, 0.16); color: #6EE7B7; border-color: rgba(16, 185, 129, 0.4); }
+  .btn-full { width: 100%; padding: 13px 16px; font-size: 14px; }
+  .error-box {
+    margin-top: 12px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: rgba(239, 68, 68, 0.14);
+    border: 1px solid rgba(239, 68, 68, 0.4);
+    color: #FCA5A5;
+    font-size: 13px;
+  }
+
+  /* Main Console Layout */
+  .topbar {
+    position: sticky; top: 0; z-index: 20;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 24px;
+    background: rgba(11, 15, 20, 0.9);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .topbar-left { display: flex; align-items: center; gap: 14px; }
+  .topbar-stats { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .stat-chip {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 6px 11px;
+    border-radius: 999px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .stat-chip strong { color: var(--ink); }
+
+  .workspace {
+    display: grid;
+    grid-template-columns: 390px 1fr;
+    gap: 20px;
+    padding: 20px 24px 36px;
+    max-width: 1520px;
+    margin: 0 auto;
+  }
+  @media (max-width: 1024px) {
+    .workspace { grid-template-columns: 1fr; }
+  }
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 18px;
+    margin-bottom: 16px;
+  }
+  .panel-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 14px; gap: 8px;
+  }
+  .panel-title {
+    font-size: 15px; font-weight: 700; letter-spacing: 0.01em;
+  }
+  .badge {
+    font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 999px;
+    border: 1px solid var(--border); color: var(--muted);
+  }
+  .badge-live { background: rgba(16, 185, 129, 0.14); border-color: rgba(16, 185, 129, 0.45); color: #34D399; }
+  .badge-warn { background: rgba(245, 158, 11, 0.14); border-color: rgba(245, 158, 11, 0.45); color: #FBBF24; }
+
+  /* Phone Mirror Stage */
+  .phone-stage {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 9 / 19;
+    max-height: 620px;
+    background: #05070A;
+    border: 2px solid #243344;
+    border-radius: 26px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    user-select: none;
+    touch-action: none;
+    cursor: crosshair;
+  }
+  .phone-stage img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    pointer-events: none;
+    display: block;
+  }
+  .stage-placeholder {
+    padding: 24px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 13px;
+  }
+  .tap-ripple {
+    position: absolute;
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    border: 2px solid var(--cyan);
+    background: rgba(34, 211, 238, 0.25);
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    animation: rippleOut 0.45s ease-out forwards;
+  }
+  @keyframes rippleOut {
+    from { opacity: 1; transform: translate(-50%, -50%) scale(0.5); }
+    to { opacity: 0; transform: translate(-50%, -50%) scale(1.9); }
+  }
+  .nav-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-top: 12px;
+  }
+  .row-gap { display: flex; gap: 8px; align-items: center; }
+  .row-wrap { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  /* Tabs on Right Side */
+  .tabs {
+    display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px;
+  }
+  .tab-btn {
+    padding: 9px 14px; border-radius: 10px; font-size: 13px; font-weight: 600;
+    background: var(--surface); color: var(--muted); border: 1px solid var(--border); cursor: pointer;
+  }
+  .tab-btn.active { background: rgba(34, 211, 238, 0.14); color: var(--cyan); border-color: rgba(34, 211, 238, 0.5); }
+
+  .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+  .slider-row { margin-bottom: 12px; }
+  .slider-head { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px; color: var(--muted); }
+  .slider-head strong { color: var(--ink); }
+  input[type="range"] { width: 100%; accent-color: var(--cyan); cursor: pointer; }
+
+  .list-scroll { max-height: 360px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+  .list-item {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    background: var(--surface-2); border: 1px solid var(--border);
+    padding: 10px 12px; border-radius: 12px;
+  }
+  .list-item-main { min-width: 0; flex: 1; }
+  .list-title { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .list-sub { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .toast {
+    position: fixed; bottom: 20px; right: 20px; z-index: 60;
+    background: #0F172A; border: 1px solid var(--cyan); color: var(--ink);
+    padding: 11px 16px; border-radius: 12px; font-size: 13px;
+    box-shadow: 0 12px 32px rgba(0,0,0,0.5);
+  }
+</style>
+</head>
+<body>
+
+<div id="authView" class="auth-wrap">
+  <div class="auth-card">
+    <div class="brand-pill"><span class="dot"></span>DeckLink Host</div>
+    <h1>Pair with Phone</h1>
+    <p class="sub" id="deviceBanner">Enter the 6-digit Pairing PIN shown on your Android device.</p>
+    <form id="pairForm">
+      <label for="pinInput">6-Digit Pairing PIN</label>
+      <input id="pinInput" class="pin-input mono" type="password" inputmode="numeric" maxlength="6" placeholder="••••••" autocomplete="off" required />
+      <label for="laptopName">Laptop Label</label>
+      <input id="laptopName" type="text" placeholder="My Laptop" maxlength="40" style="margin-bottom: 16px;" />
+      <button type="submit" class="btn btn-primary btn-full">Connect &amp; Control Phone</button>
+    </form>
+    <div id="authError" class="error-box hidden"></div>
+  </div>
+</div>
+
+<div id="consoleView" class="hidden">
+  <header class="topbar">
+    <div class="topbar-left">
+      <div class="brand-pill" style="margin:0;"><span class="dot"></span>DeckLink</div>
+      <div>
+        <div id="topDeviceName" style="font-weight:700; font-size:15px;">Android Device</div>
+        <div id="topDeviceMeta" class="mono" style="font-size:11px; color:var(--muted);">Connecting...</div>
+      </div>
+    </div>
+    <div class="topbar-stats">
+      <div class="stat-chip">Battery <strong id="statBattery">--%</strong></div>
+      <div class="stat-chip">RAM <strong id="statRam">--</strong></div>
+      <div class="stat-chip">Storage <strong id="statStorage">--</strong></div>
+      <div class="stat-chip">Temp <strong id="statTemp">--°C</strong></div>
+      <button id="btnDisconnect" class="btn btn-danger">Disconnect</button>
+    </div>
+  </header>
+
+  <main class="workspace">
+    <!-- Left Column: Live Screen Mirror + Touchpad + Keyboard -->
+    <section>
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Live Screen &amp; Touch</span>
+          <span id="mirrorBadge" class="badge">Standby</span>
+        </div>
+
+        <div id="phoneStage" class="phone-stage" title="Click to Tap, Drag to Swipe">
+          <img id="mirrorImg" class="hidden" alt="Live phone screen mirror" />
+          <div id="stagePlaceholder" class="stage-placeholder">
+            <div style="font-weight:700; color:var(--ink); margin-bottom:6px;">Mirror Standby</div>
+            Tap <strong>Start Screen Mirror</strong> inside the DeckLink app on your phone to stream live video here.
+            <br /><br />
+            You can still click or swipe anywhere on this pad once Remote Touch is enabled!
+          </div>
+        </div>
+
+        <div class="nav-grid">
+          <button class="btn" data-global="back">Back</button>
+          <button class="btn" data-global="home">Home</button>
+          <button class="btn" data-global="recents">Recents</button>
+          <button class="btn" data-global="notifications">Shade</button>
+          <button class="btn" data-global="quick_settings">Quick</button>
+          <button class="btn" data-global="screenshot">Shot</button>
+          <button class="btn" data-global="power_dialog">Power</button>
+          <button class="btn btn-danger" data-global="lock_screen">Lock</button>
+        </div>
+
+        <div style="margin-top: 14px;">
+          <label for="remoteTextInput">Remote Keyboard (Type into Phone)</label>
+          <div class="row-gap">
+            <input id="remoteTextInput" type="text" placeholder="Type message or search query..." />
+            <button id="btnSendText" class="btn btn-primary">Send</button>
+            <button id="btnClearText" class="btn">Clear</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Right Column: Modular Control Tabs -->
+    <section>
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="overview">Controls &amp; Audio</button>
+        <button class="tab-btn" data-tab="apps">Apps</button>
+        <button class="tab-btn" data-tab="files">File Vault</button>
+        <button class="tab-btn" data-tab="notifications">Notifications</button>
+        <button class="tab-btn" data-tab="uitree">UI Inspector</button>
+      </div>
+
+      <!-- TAB 1: Controls, Audio, Clipboard, Hardware, Macros -->
+      <div id="tab-overview">
+        <div class="grid-2">
+          <div class="panel">
+            <div class="panel-header">
+              <span class="panel-title">Volume &amp; Media</span>
+              <span id="ringerBadge" class="badge">Normal</span>
+            </div>
+            <div class="slider-row">
+              <div class="slider-head"><span>Media</span><strong id="volMediaVal">0</strong></div>
+              <input id="volMedia" type="range" min="0" max="15" value="0" />
+            </div>
+            <div class="slider-row">
+              <div class="slider-head"><span>Ring</span><strong id="volRingVal">0</strong></div>
+              <input id="volRing" type="range" min="0" max="7" value="0" />
+            </div>
+            <div class="slider-row">
+              <div class="slider-head"><span>Notification</span><strong id="volNotifVal">0</strong></div>
+              <input id="volNotif" type="range" min="0" max="7" value="0" />
+            </div>
+            <div class="slider-row">
+              <div class="slider-head"><span>Alarm</span><strong id="volAlarmVal">0</strong></div>
+              <input id="volAlarm" type="range" min="0" max="7" value="0" />
+            </div>
+            <div class="row-wrap" style="margin-top:10px;">
+              <button class="btn" data-ringer="normal">Normal</button>
+              <button class="btn" data-ringer="vibrate">Vibrate</button>
+              <button class="btn" data-ringer="silent">Silent</button>
+            </div>
+            <div class="row-wrap" style="margin-top:10px;">
+              <button class="btn" data-media="previous">Prev</button>
+              <button class="btn btn-primary" data-media="play_pause">Play / Pause</button>
+              <button class="btn" data-media="next">Next</button>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-header">
+              <span class="panel-title">Hardware &amp; Quick Actions</span>
+              <span id="a11yBadge" class="badge">Touch</span>
+            </div>
+            <div class="row-wrap" style="margin-bottom:14px;">
+              <button id="btnTorch" class="btn">Flashlight: OFF</button>
+              <button id="btnRing" class="btn btn-emerald">Ring Phone</button>
+              <button id="btnVibrate" class="btn">Vibrate Ping</button>
+            </div>
+            <label for="openUrlInput">Open Web Link on Phone</label>
+            <div class="row-gap" style="margin-bottom:14px;">
+              <input id="openUrlInput" type="url" placeholder="https://example.com" />
+              <button id="btnOpenUrl" class="btn btn-primary">Open</button>
+            </div>
+            <label>Automation Macros</label>
+            <div id="macroList" class="row-wrap"></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title">Bidirectional Clipboard Sync</span>
+            <div class="row-gap">
+              <button id="btnPullClip" class="btn">Pull from Phone</button>
+              <button id="btnPushClip" class="btn btn-primary">Push to Phone</button>
+            </div>
+          </div>
+          <textarea id="clipboardArea" rows="3" placeholder="Sync text snippets, links, or codes between laptop and phone..."></textarea>
+        </div>
+      </div>
+
+      <!-- TAB 2: App Launcher -->
+      <div id="tab-apps" class="hidden">
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title">Installed Apps Launcher</span>
+            <button id="btnRefreshApps" class="btn">Refresh</button>
+          </div>
+          <input id="appSearch" type="text" placeholder="Filter apps by name or package..." style="margin-bottom:12px;" />
+          <div id="appsList" class="list-scroll"></div>
+        </div>
+      </div>
+
+      <!-- TAB 3: File Vault -->
+      <div id="tab-files" class="hidden">
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title">Two-Way File Vault</span>
+            <div class="row-gap">
+              <input id="fileUploadInput" type="file" class="hidden" />
+              <button id="btnUploadFile" class="btn btn-primary">Send File to Phone</button>
+              <button id="btnRefreshFiles" class="btn">Refresh</button>
+            </div>
+          </div>
+          <p class="sub" style="margin-bottom:12px;">Upload files from your laptop directly into the phone's DeckLink Vault, or download files shared from your phone (up to 25 MB each).</p>
+          <div id="filesList" class="list-scroll"></div>
+        </div>
+      </div>
+
+      <!-- TAB 4: Live Notifications -->
+      <div id="tab-notifications" class="hidden">
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title">Phone Notifications Bridge</span>
+            <button id="btnRefreshNotifs" class="btn">Refresh</button>
+          </div>
+          <div id="notifsList" class="list-scroll"></div>
+        </div>
+      </div>
+
+      <!-- TAB 5: Live Accessibility UI Tree Inspector -->
+      <div id="tab-uitree" class="hidden">
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title">Live UI Element Inspector</span>
+            <button id="btnRefreshUiTree" class="btn btn-primary">Scan Current Screen</button>
+          </div>
+          <p class="sub" style="margin-bottom:12px;">Inspect and click interactive buttons or inputs directly by label, even without video streaming.</p>
+          <div id="uiTreeList" class="list-scroll"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+
+<script>
+(() => {
+  // Security: session credentials live strictly in page memory (never localStorage/sessionStorage)
+  let authToken = null;
+  let streamTicket = null;
+  let pollTimer = null;
+  let mirrorStreaming = false;
+  let torchOn = false;
+  let ringActive = false;
+  let cachedApps = [];
+
+  const $ = (id) => document.getElementById(id);
+
+  function showToast(msg) {
+    const el = $("toast");
+    el.textContent = msg;
+    el.classList.remove("hidden");
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(() => el.classList.add("hidden"), 2600);
+  }
+
+  async function api(path, options = {}) {
+    const headers = Object.assign({}, options.headers || {});
+    if (authToken) headers["Authorization"] = "Bearer " + authToken;
+    const res = await fetch(path, Object.assign({}, options, { headers }));
+    if (res.status === 401 && authToken) {
+      logoutLocal("Session revoked or expired on phone.");
+      throw new Error("Unauthorized");
+    }
+    const text = await res.text();
+    let data = {};
+    try { data = text ? JSON.parse(text) : {}; } catch (_) {}
+    if (!res.ok) {
+      throw new Error(data.error || ("Request failed (" + res.status + ")"));
+    }
+    return data;
+  }
+
+  async function initPing() {
+    try {
+      const info = await fetch("/api/ping").then(r => r.json());
+      if (info.deviceModel) {
+        $("deviceBanner").textContent = "Target: " + info.deviceModel + " — enter the 6-digit PIN displayed in DeckLink.";
+      }
+    } catch (_) {}
+  }
+
+  function logoutLocal(reason) {
+    authToken = null;
+    streamTicket = null;
+    mirrorStreaming = false;
+    clearInterval(pollTimer);
+    $("mirrorImg").removeAttribute("src");
+    $("mirrorImg").classList.add("hidden");
+    $("stagePlaceholder").classList.remove("hidden");
+    $("consoleView").classList.add("hidden");
+    $("authView").classList.remove("hidden");
+    $("pinInput").value = "";
+    if (reason) {
+      $("authError").textContent = reason;
+      $("authError").classList.remove("hidden");
+    }
+  }
+
+  $("pairForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    $("authError").classList.add("hidden");
+    const pin = $("pinInput").value.trim();
+    const label = $("laptopName").value.trim() || "Laptop Browser";
+    try {
+      const res = await fetch("/api/auth/pair", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pin, clientLabel: label })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        $("authError").textContent = data.error || "Pairing failed";
+        $("authError").classList.remove("hidden");
+        return;
+      }
+      authToken = data.token;
+      streamTicket = data.streamTicket;
+      $("authView").classList.add("hidden");
+      $("consoleView").classList.remove("hidden");
+      startConsole();
+    } catch (err) {
+      $("authError").textContent = "Cannot reach phone server: " + err.message;
+      $("authError").classList.remove("hidden");
+    }
+  });
+
+  $("btnDisconnect").addEventListener("click", async () => {
+    try { await api("/api/auth/logout", { method: "POST" }); } catch (_) {}
+    logoutLocal("");
+  });
+
+  // Tab switching
+  document.querySelectorAll(".tab-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      const tab = btn.dataset.tab;
+      ["overview", "apps", "files", "notifications", "uitree"].forEach(t => {
+        $("tab-" + t).classList.toggle("hidden", t !== tab);
+      });
+      if (tab === "apps" && cachedApps.length === 0) loadApps();
+      if (tab === "files") loadFiles();
+      if (tab === "notifications") loadNotifications();
+      if (tab === "uitree") loadUiTree();
+    });
+  });
+
+  async function startConsole() {
+    await refreshStatus();
+    loadMacros();
+    pollTimer = setInterval(refreshStatus, 2500);
+  }
+
+  async function refreshStatus() {
+    if (!authToken) return;
+    try {
+      const s = await api("/api/status");
+      $("topDeviceName").textContent = s.deviceModel || "Android Device";
+      $("topDeviceMeta").textContent = (s.androidVersion || "") + " • " + (s.ipAddress || "") + " (" + (s.networkType || "") + ")";
+      $("statBattery").textContent = s.batteryPercent + "%" + (s.isCharging ? " ⚡" : "");
+      $("statRam").textContent = Math.round(s.ramUsedMb / 102.4) / 10 + "/" + Math.round(s.ramTotalMb / 102.4) / 10 + " GB";
+      $("statStorage").textContent = Number(s.storageUsedGb).toFixed(1) + "/" + Number(s.storageTotalGb).toFixed(0) + " GB";
+      $("statTemp").textContent = Number(s.batteryTempC).toFixed(1) + "°C";
+
+      if (s.volumes) {
+        updateSlider("volMedia", "volMediaVal", s.volumes.media, s.volumes.mediaMax);
+        updateSlider("volRing", "volRingVal", s.volumes.ring, s.volumes.ringMax);
+        updateSlider("volNotif", "volNotifVal", s.volumes.notification, s.volumes.notificationMax);
+        updateSlider("volAlarm", "volAlarmVal", s.volumes.alarm, s.volumes.alarmMax);
+        $("ringerBadge").textContent = (s.volumes.ringerMode || "normal").toUpperCase();
+      }
+
+      if (s.readiness) {
+        torchOn = !!s.readiness.torchEnabled;
+        ringActive = !!s.readiness.finderRingActive;
+        $("btnTorch").textContent = torchOn ? "Flashlight: ON" : "Flashlight: OFF";
+        $("btnRing").textContent = ringActive ? "Stop Ring Alert" : "Ring Phone";
+        $("a11yBadge").textContent = s.readiness.accessibilityConnected ? "Touch Ready" : "Enable Accessibility";
+        $("a11yBadge").className = "badge " + (s.readiness.accessibilityConnected ? "badge-live" : "badge-warn");
+
+        const canMirror = s.readiness.screenMirrorActive && s.capabilities && s.capabilities.screenMirror;
+        $("mirrorBadge").textContent = canMirror ? "LIVE STREAM" : "STANDBY";
+        $("mirrorBadge").className = "badge " + (canMirror ? "badge-live" : "badge-warn");
+        if (canMirror && !mirrorStreaming && streamTicket) {
+          mirrorStreaming = true;
+          $("mirrorImg").src = "/api/stream/mjpeg?ticket=" + encodeURIComponent(streamTicket) + "&t=" + Date.now();
+          $("mirrorImg").classList.remove("hidden");
+          $("stagePlaceholder").classList.add("hidden");
+        } else if (!canMirror && mirrorStreaming) {
+          mirrorStreaming = false;
+          $("mirrorImg").removeAttribute("src");
+          $("mirrorImg").classList.add("hidden");
+          $("stagePlaceholder").classList.remove("hidden");
+        }
+      }
+    } catch (_) {}
+  }
+
+  function updateSlider(inputId, labelId, val, max) {
+    const el = $(inputId);
+    el.max = max || 10;
+    if (document.activeElement !== el) el.value = val;
+    $(labelId).textContent = val + " / " + (max || 10);
+  }
+
+  // Interactive Phone Mirror Touch & Swipe
+  const stage = $("phoneStage");
+  let dragStart = null;
+  let dragTime = 0;
+
+  function normalizedPoint(ev) {
+    const rect = stage.getBoundingClientRect();
+    const x = Math.max(0, Math.min(1, (ev.clientX - rect.left) / rect.width));
+    const y = Math.max(0, Math.min(1, (ev.clientY - rect.top) / rect.height));
+    return { x, y, px: ev.clientX - rect.left, py: ev.clientY - rect.top };
+  }
+
+  function spawnRipple(px, py) {
+    const dot = document.createElement("div");
+    dot.className = "tap-ripple";
+    dot.style.left = px + "px";
+    dot.style.top = py + "px";
+    stage.appendChild(dot);
+    setTimeout(() => dot.remove(), 460);
+  }
+
+  stage.addEventListener("pointerdown", (ev) => {
+    dragStart = normalizedPoint(ev);
+    dragTime = Date.now();
+  });
+
+  stage.addEventListener("pointerup", async (ev) => {
+    if (!dragStart) return;
+    const end = normalizedPoint(ev);
+    const dx = end.x - dragStart.x;
+    const dy = end.y - dragStart.y;
+    const dist = Math.hypot(dx, dy);
+    const elapsed = Date.now() - dragTime;
+    const start = dragStart;
+    dragStart = null;
+
+    spawnRipple(end.px, end.py);
+    try {
+      if (dist > 0.045) {
+        await api("/api/input/swipe", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ x1: start.x, y1: start.y, x2: end.x, y2: end.y, durationMs: Math.max(120, Math.min(700, elapsed)) })
+        });
+      } else {
+        const dur = elapsed > 450 ? 620 : 70;
+        await api("/api/input/tap", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ x: end.x, y: end.y, durationMs: dur })
+        });
+      }
+    } catch (err) {
+      showToast(err.message);
+    }
+  });
+
+  // Global Android Navigation Keys
+  document.querySelectorAll("[data-global]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      try {
+        await api("/api/input/global", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: btn.dataset.global })
+        });
+        showToast("Sent: " + btn.textContent);
+      } catch (err) { showToast(err.message); }
+    });
+  });
+
+  // Remote Keyboard
+  $("btnSendText").addEventListener("click", async () => {
+    const val = $("remoteTextInput").value;
+    if (!val) return;
+    try {
+      await api("/api/input/text", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: val, append: true })
+      });
+      $("remoteTextInput").value = "";
+      showToast("Typed on phone");
+    } catch (err) { showToast(err.message); }
+  });
+
+  $("btnClearText").addEventListener("click", async () => {
+    try {
+      await api("/api/input/text", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clear: true })
+      });
+      showToast("Cleared active input");
+    } catch (err) { showToast(err.message); }
+  });
+
+  // Audio Sliders
+  [["volMedia", "media"], ["volRing", "ring"], ["volNotif", "notification"], ["volAlarm", "alarm"]].forEach(([id, stream]) => {
+    $(id).addEventListener("change", async () => {
+      try {
+        await api("/api/audio/volume", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ stream, level: Number($(id).value) })
+        });
+        refreshStatus();
+      } catch (err) { showToast(err.message); }
+    });
+  });
+
+  document.querySelectorAll("[data-ringer]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      try {
+        await api("/api/audio/ringer", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ mode: btn.dataset.ringer })
+        });
+        showToast("Ringer -> " + btn.textContent);
+        refreshStatus();
+      } catch (err) { showToast(err.message); }
+    });
+  });
+
+  document.querySelectorAll("[data-media]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      try {
+        await api("/api/media/key", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ command: btn.dataset.media })
+        });
+        showToast("Media: " + btn.textContent);
+      } catch (err) { showToast(err.message); }
+    });
+  });
+
+  // Hardware Controls
+  $("btnTorch").addEventListener("click", async () => {
+    try {
+      const res = await api("/api/device/torch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled: !torchOn })
+      });
+      torchOn = !!res.enabled;
+      $("btnTorch").textContent = torchOn ? "Flashlight: ON" : "Flashlight: OFF";
+    } catch (err) { showToast(err.message); }
+  });
+
+  $("btnRing").addEventListener("click", async () => {
+    try {
+      const res = await api("/api/device/ring", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ active: !ringActive })
+      });
+      ringActive = !!res.active;
+      $("btnRing").textContent = ringActive ? "Stop Ring Alert" : "Ring Phone";
+    } catch (err) { showToast(err.message); }
+  });
+
+  $("btnVibrate").addEventListener("click", async () => {
+    try {
+      await api("/api/device/vibrate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ durationMs: 260 })
+      });
+      showToast("Phone vibrated");
+    } catch (err) { showToast(err.message); }
+  });
+
+  $("btnOpenUrl").addEventListener("click", async () => {
+    const url = $("openUrlInput").value.trim();
+    if (!url) return;
+    try {
+      await api("/api/device/open-url", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url })
+      });
+      $("openUrlInput").value = "";
+      showToast("Opened link on phone");
+    } catch (err) { showToast(err.message); }
+  });
+
+  // Clipboard Sync
+  $("btnPullClip").addEventListener("click", async () => {
+    try {
+      const res = await api("/api/clipboard");
+      $("clipboardArea").value = res.text || "";
+      showToast("Pulled phone clipboard");
+    } catch (err) { showToast(err.message); }
+  });
+
+  $("btnPushClip").addEventListener("click", async () => {
+    try {
+      await api("/api/clipboard", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: $("clipboardArea").value })
+      });
+      showToast("Copied to phone clipboard");
+    } catch (err) { showToast(err.message); }
+  });
+
+  // Macros
+  async function loadMacros() {
+    try {
+      const res = await api("/api/macros");
+      const wrap = $("macroList");
+      wrap.replaceChildren();
+      (res.macros || []).forEach(m => {
+        const b = document.createElement("button");
+        b.className = "btn";
+        b.textContent = m.title;
+        b.title = m.steps;
+        b.addEventListener("click", async () => {
+          try {
+            const r = await api("/api/macros/run", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ id: m.id })
+            });
+            showToast(r.message || "Macro applied");
+            refreshStatus();
+          } catch (err) { showToast(err.message); }
+        });
+        wrap.appendChild(b);
+      });
+    } catch (_) {}
+  }
+
+  // App Launcher
+  async function loadApps() {
+    try {
+      const res = await api("/api/apps");
+      cachedApps = res.apps || [];
+      renderApps();
+    } catch (err) { showToast(err.message); }
+  }
+
+  function renderApps() {
+    const q = $("appSearch").value.trim().toLowerCase();
+    const list = $("appsList");
+    list.replaceChildren();
+    const filtered = cachedApps.filter(a => !q || a.label.toLowerCase().includes(q) || a.packageName.toLowerCase().includes(q));
+    if (filtered.length === 0) {
+      const empty = document.createElement("div");
+      empty.className = "sub";
+      empty.textContent = "No matching apps found.";
+      list.appendChild(empty);
+      return;
+    }
+    filtered.forEach(app => {
+      const row = document.createElement("div");
+      row.className = "list-item";
+      const main = document.createElement("div");
+      main.className = "list-item-main";
+      const t = document.createElement("div");
+      t.className = "list-title";
+      t.textContent = app.label;
+      const s = document.createElement("div");
+      s.className = "list-sub mono";
+      s.textContent = app.packageName;
+      main.append(t, s);
+      const btn = document.createElement("button");
+      btn.className = "btn btn-primary";
+      btn.textContent = "Launch";
+      btn.addEventListener("click", async () => {
+        try {
+          await api("/api/apps/launch", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ packageName: app.packageName })
+          });
+          showToast("Launched " + app.label);
+        } catch (err) { showToast(err.message); }
+      });
+      row.append(main, btn);
+      list.appendChild(row);
+    });
+  }
+
+  $("appSearch").addEventListener("input", renderApps);
+  $("btnRefreshApps").addEventListener("click", loadApps);
+
+  // Two-Way File Vault
+  async function loadFiles() {
+    try {
+      const res = await api("/api/files");
+      const list = $("filesList");
+      list.replaceChildren();
+      const files = res.files || [];
+      if (files.length === 0) {
+        const empty = document.createElement("div");
+        empty.className = "sub";
+        empty.textContent = "Vault is empty. Send a file from your laptop or add one on your phone.";
+        list.appendChild(empty);
+        return;
+      }
+      files.forEach(f => {
+        const row = document.createElement("div");
+        row.className = "list-item";
+        const main = document.createElement("div");
+        main.className = "list-item-main";
+        const t = document.createElement("div");
+        t.className = "list-title";
+        t.textContent = f.name;
+        const s = document.createElement("div");
+        s.className = "list-sub mono";
+        s.textContent = formatSize(f.sizeBytes) + " • " + f.mimeType;
+        main.append(t, s);
+
+        const actions = document.createElement("div");
+        actions.className = "row-gap";
+        const dl = document.createElement("a");
+        dl.className = "btn btn-primary";
+        dl.textContent = "Download";
+        dl.href = "/api/files/download?name=" + encodeURIComponent(f.name) + "&ticket=" + encodeURIComponent(streamTicket || "");
+        dl.setAttribute("download", f.name);
+
+        const del = document.createElement("button");
+        del.className = "btn btn-danger";
+        del.textContent = "Delete";
+        del.addEventListener("click", async () => {
+          try {
+            await api("/api/files?name=" + encodeURIComponent(f.name), { method: "DELETE" });
+            showToast("Deleted " + f.name);
+            loadFiles();
+          } catch (err) { showToast(err.message); }
+        });
+        actions.append(dl, del);
+        row.append(main, actions);
+        list.appendChild(row);
+      });
+    } catch (err) { showToast(err.message); }
+  }
+
+  $("btnUploadFile").addEventListener("click", () => $("fileUploadInput").click());
+  $("fileUploadInput").addEventListener("change", async (ev) => {
+    const file = ev.target.files && ev.target.files[0];
+    if (!file) return;
+    try {
+      const buf = await file.arrayBuffer();
+      await api("/api/files/upload?name=" + encodeURIComponent(file.name), {
+        method: "POST",
+        headers: { "Content-Type": "application/octet-stream" },
+        body: buf
+      });
+      showToast("Uploaded " + file.name + " to phone vault");
+      loadFiles();
+    } catch (err) {
+      showToast(err.message);
+    } finally {
+      ev.target.value = "";
+    }
+  });
+  $("btnRefreshFiles").addEventListener("click", loadFiles);
+
+  // Notifications Bridge
+  async function loadNotifications() {
+    try {
+      const res = await api("/api/notifications");
+      const list = $("notifsList");
+      list.replaceChildren();
+      if (!res.connected) {
+        const msg = document.createElement("div");
+        msg.className = "sub";
+        msg.textContent = "Notification Access is not enabled yet. Enable DeckLink Notification Bridge in the phone app.";
+        list.appendChild(msg);
+        return;
+      }
+      const items = res.notifications || [];
+      if (items.length === 0) {
+        const msg = document.createElement("div");
+        msg.className = "sub";
+        msg.textContent = "No active notifications on your phone.";
+        list.appendChild(msg);
+        return;
+      }
+      items.forEach(n => {
+        const row = document.createElement("div");
+        row.className = "list-item";
+        const main = document.createElement("div");
+        main.className = "list-item-main";
+        const t = document.createElement("div");
+        t.className = "list-title";
+        t.textContent = "[" + n.appName + "] " + n.title;
+        const s = document.createElement("div");
+        s.className = "list-sub";
+        s.textContent = n.text || "";
+        main.append(t, s);
+        row.appendChild(main);
+        if (n.isClearable) {
+          const btn = document.createElement("button");
+          btn.className = "btn";
+          btn.textContent = "Dismiss";
+          btn.addEventListener("click", async () => {
+            try {
+              await api("/api/notifications/dismiss", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ key: n.key })
+              });
+              loadNotifications();
+            } catch (err) { showToast(err.message); }
+          });
+          row.appendChild(btn);
+        }
+        list.appendChild(row);
+      });
+    } catch (err) { showToast(err.message); }
+  }
+  $("btnRefreshNotifs").addEventListener("click", loadNotifications);
+
+  // Live UI Node Inspector
+  async function loadUiTree() {
+    try {
+      const res = await api("/api/ui/tree");
+      const list = $("uiTreeList");
+      list.replaceChildren();
+      const nodes = res.nodes || [];
+      if (nodes.length === 0) {
+        const msg = document.createElement("div");
+        msg.className = "sub";
+        msg.textContent = "No interactive elements detected on the active phone screen.";
+        list.appendChild(msg);
+        return;
+      }
+      nodes.forEach(node => {
+        const row = document.createElement("div");
+        row.className = "list-item";
+        const main = document.createElement("div");
+        main.className = "list-item-main";
+        const t = document.createElement("div");
+        t.className = "list-title";
+        t.textContent = node.label;
+        const s = document.createElement("div");
+        s.className = "list-sub mono";
+        s.textContent = node.className + (node.editable ? " • Editable" : " • Clickable");
+        main.append(t, s);
+        const btn = document.createElement("button");
+        btn.className = "btn btn-primary";
+        btn.textContent = "Tap";
+        btn.addEventListener("click", async () => {
+          try {
+            await api("/api/input/node-click", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ index: node.index })
+            });
+            showToast("Tapped: " + node.label);
+            setTimeout(loadUiTree, 500);
+          } catch (err) { showToast(err.message); }
+        });
+        row.append(main, btn);
+        list.appendChild(row);
+      });
+    } catch (err) { showToast(err.message); }
+  }
+  $("btnRefreshUiTree").addEventListener("click", loadUiTree);
+
+  function formatSize(bytes) {
+    if (bytes < 1024) return bytes + " B";
+    if (bytes < 1048576) return (bytes / 1024).toFixed(1) + " KB";
+    return (bytes / 1048576).toFixed(2) + " MB";
+  }
+
+  initPing();
+})();
+</script>
+</body>
+</html>

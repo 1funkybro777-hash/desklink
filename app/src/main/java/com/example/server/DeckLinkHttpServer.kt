@@ -1,0 +1,800 @@
+package com.example.server
+
+import android.content.Context
+import com.example.control.DeviceTelemetryProvider
+import com.example.control.SystemControlManager
+import com.example.data.DeckLinkStateStore
+import com.example.data.VaultFileManager
+import com.example.model.LogStatus
+import com.example.service.DeckLinkAccessibilityService
+import com.example.service.DeckLinkNotificationListener
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import org.json.JSONArray
+import org.json.JSONObject
+import java.io.BufferedInputStream
+import java.io.ByteArrayOutputStream
+import java.io.OutputStream
+import java.net.InetSocketAddress
+import java.net.ServerSocket
+import java.net.Socket
+import java.net.URLDecoder
+
+class DeckLinkHttpServer(
+    private val context: Context,
+    private val telemetryProvider: DeviceTelemetryProvider,
+    private val systemControl: SystemControlManager,
+    private val vaultFileManager: VaultFileManager
+) {
+    companion object {
+        private const val MAX_HEADER_BYTES = 16 * 1024
+        private const val MAX_JSON_BODY_BYTES = 256 * 1024
+        private const val STREAM_BOUNDARY = "decklinkframe"
+    }
+
+    private var serverScope: CoroutineScope? = null
+    private var acceptJob: Job? = null
+    private var serverSocket: ServerSocket? = null
+
+    @Volatile
+    var boundPort: Int = 8765
+        private set
+
+    private val webConsoleBytes: ByteArray by lazy {
+        context.assets.open("web_console.html").use { it.readBytes() }
+    }
+
+    fun start(port: Int): Result<Int> {
+        stop()
+        return runCatching {
+            val safePort = port.coerceIn(1024, 65535)
+            val socket = ServerSocket().apply {
+                reuseAddress = true
+                bind(InetSocketAddress("0.0.0.0", safePort))
+            }
+            serverSocket = socket
+            boundPort = safePort
+            val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+            serverScope = scope
+
+            acceptJob = scope.launch {
+                while (isActive && !socket.isClosed) {
+                    val client = runCatching { socket.accept() }.getOrNull() ?: break
+                    scope.launch {
+                        handleClient(client)
+                    }
+                }
+            }
+            safePort
+        }
+    }
+
+    fun stop() {
+        runCatching { acceptJob?.cancel() }
+        acceptJob = null
+        runCatching { serverSocket?.close() }
+        serverSocket = null
+        runCatching { serverScope?.cancel() }
+        serverScope = null
+    }
+
+    private suspend fun handleClient(socket: Socket) {
+        val clientIp = socket.inetAddress?.hostAddress ?: "unknown"
+        socket.use { sock ->
+            runCatching {
+                sock.soTimeout = 15_000
+                val input = BufferedInputStream(sock.getInputStream())
+                val output = sock.getOutputStream()
+
+                val request = parseHttpRequest(input) ?: return
+                routeRequest(request, clientIp, sock, output)
+            }
+        }
+    }
+
+    private data class HttpRequest(
+        val method: String,
+        val path: String,
+        val query: Map<String, String>,
+        val headers: Map<String, String>,
+        val body: ByteArray
+    )
+
+    private fun parseHttpRequest(input: BufferedInputStream): HttpRequest? {
+        val headerBuf = ByteArrayOutputStream()
+        var matched = 0
+        while (headerBuf.size() < MAX_HEADER_BYTES) {
+            val b = input.read()
+            if (b == -1) return null
+            headerBuf.write(b)
+            matched = when {
+                matched == 0 && b == '\r'.code -> 1
+                matched == 1 && b == '\n'.code -> 2
+                matched == 2 && b == '\r'.code -> 3
+                matched == 3 && b == '\n'.code -> 4
+                b == '\r'.code -> 1
+                else -> 0
+            }
+            if (matched == 4) break
+        }
+        if (matched != 4) return null
+
+        val headerText = headerBuf.toString(Charsets.ISO_8859_1.name())
+        val lines = headerText.split("\r\n").filter { it.isNotEmpty() }
+        if (lines.isEmpty()) return null
+
+        val requestLineParts = lines.first().split(" ")
+        if (requestLineParts.size < 2) return null
+
+        val method = requestLineParts[0].uppercase()
+        val rawTarget = requestLineParts[1]
+        val pathPart = rawTarget.substringBefore('?')
+        val queryPart = rawTarget.substringAfter('?', "")
+        val queryMap = parseQuery(queryPart)
+
+        val headers = mutableMapOf<String, String>()
+        for (i in 1 until lines.size) {
+            val idx = lines[i].indexOf(':')
+            if (idx > 0) {
+                val key = lines[i].substring(0, idx).trim().lowercase()
+                val value = lines[i].substring(idx + 1).trim()
+                headers[key] = value
+            }
+        }
+
+        val contentLength = headers["content-length"]?.toIntOrNull()?.coerceAtLeast(0) ?: 0
+        val maxAllowed = if (pathPart == "/api/files/upload") {
+            VaultFileManager.MAX_UPLOAD_BYTES.toInt()
+        } else {
+            MAX_JSON_BODY_BYTES
+        }
+        if (contentLength > maxAllowed) {
+            return HttpRequest(method, "__PAYLOAD_TOO_LARGE__", queryMap, headers, ByteArray(0))
+        }
+
+        val body = ByteArray(contentLength)
+        var offset = 0
+        while (offset < contentLength) {
+            val read = input.read(body, offset, contentLength - offset)
+            if (read <= 0) break
+            offset += read
+        }
+
+        return HttpRequest(method, pathPart, queryMap, headers, body)
+    }
+
+    private fun parseQuery(query: String): Map<String, String> {
+        if (query.isBlank()) return emptyMap()
+        val map = mutableMapOf<String, String>()
+        for (pair in query.split('&')) {
+            if (pair.isBlank()) continue
+            val key = URLDecoder.decode(pair.substringBefore('='), "UTF-8")
+            val value = URLDecoder.decode(pair.substringAfter('=', ""), "UTF-8")
+            map[key] = value
+        }
+        return map
+    }
+
+    private suspend fun routeRequest(
+        req: HttpRequest,
+        clientIp: String,
+        socket: Socket,
+        out: OutputStream
+    ) {
+        if (req.path == "__PAYLOAD_TOO_LARGE__") {
+            sendJson(out, 413, JSONObject().put("error", "Payload exceeds limit"))
+            return
+        }
+
+        // Public endpoints: Web Console UI, ping, and PIN pairing
+        when {
+            req.method == "GET" && (req.path == "/" || req.path == "/index.html") -> {
+                sendBytes(
+                    out = out,
+                    statusCode = 200,
+                    contentType = "text/html; charset=utf-8",
+                    bytes = webConsoleBytes,
+                    extraHeaders = mapOf(
+                        "Content-Security-Policy" to
+                            "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; frame-ancestors 'none';"
+                    )
+                )
+                return
+            }
+
+            req.method == "GET" && req.path == "/api/ping" -> {
+                val telemetry = telemetryProvider.collect()
+                sendJson(
+                    out,
+                    200,
+                    JSONObject()
+                        .put("app", "DeckLink")
+                        .put("deviceModel", telemetry.deviceModel)
+                        .put("requiresPin", true)
+                )
+                return
+            }
+
+            req.method == "POST" && req.path == "/api/auth/pair" -> {
+                val payload = parseJson(req.body)
+                val pin = payload.optString("pin", "")
+                val clientLabel = payload.optString("clientLabel", req.headers["user-agent"]?.take(42) ?: "Laptop Browser")
+                when (val result = DeckLinkStateStore.attemptPair(pin, clientIp, clientLabel)) {
+                    is DeckLinkStateStore.PairResult.Success -> {
+                        sendJson(
+                            out,
+                            200,
+                            JSONObject()
+                                .put("ok", true)
+                                .put("sessionId", result.session.sessionId)
+                                .put("token", result.session.token)
+                                .put("streamTicket", result.session.streamTicket)
+                        )
+                    }
+                    is DeckLinkStateStore.PairResult.LockedOut -> {
+                        sendJson(
+                            out,
+                            429,
+                            JSONObject()
+                                .put("error", "Too many failed PIN attempts. Retry in ${result.retryAfterSeconds}s.")
+                                .put("retryAfterSeconds", result.retryAfterSeconds)
+                        )
+                    }
+                    DeckLinkStateStore.PairResult.InvalidPin -> {
+                        sendJson(out, 401, JSONObject().put("error", "Invalid 6-digit pairing PIN"))
+                    }
+                }
+                return
+            }
+        }
+
+        // Stream endpoints authenticated via active session streamTicket or Bearer token
+        if (req.method == "GET" && (req.path == "/api/stream/mjpeg" || req.path == "/api/screen/frame")) {
+            val bearer = extractBearer(req.headers)
+            val ticket = req.query["ticket"]
+            val session = DeckLinkStateStore.validateBearerToken(bearer)
+                ?: DeckLinkStateStore.validateStreamTicket(ticket)
+            if (session == null) {
+                sendJson(out, 401, JSONObject().put("error", "Unauthorized stream request"))
+                return
+            }
+            if (!DeckLinkStateStore.settings.value.capabilities.screenMirror) {
+                DeckLinkStateStore.logCommand(clientIp, "Screen Mirror", "Blocked by phone capability toggle", LogStatus.BLOCKED)
+                sendJson(out, 403, JSONObject().put("error", "Screen mirroring is disabled on phone"))
+                return
+            }
+
+            if (req.path == "/api/screen/frame") {
+                val frame = DeckLinkStateStore.latestScreenJpeg
+                if (frame == null) {
+                    sendJson(out, 503, JSONObject().put("error", "Screen mirror is not active on phone yet"))
+                } else {
+                    sendBytes(out, 200, "image/jpeg", frame)
+                }
+                return
+            }
+
+            // Live MJPEG stream
+            streamMjpeg(socket, out, session.streamTicket)
+            return
+        }
+
+        // Vault file download supports either Authorization: Bearer or active streamTicket query for browser download links
+        if (req.method == "GET" && req.path == "/api/files/download") {
+            val bearer = extractBearer(req.headers)
+            val ticket = req.query["ticket"]
+            val session = DeckLinkStateStore.validateBearerToken(bearer)
+                ?: DeckLinkStateStore.validateStreamTicket(ticket)
+            if (session == null) {
+                sendJson(out, 401, JSONObject().put("error", "Unauthorized"))
+                return
+            }
+            if (!DeckLinkStateStore.settings.value.capabilities.fileVault) {
+                DeckLinkStateStore.logCommand(clientIp, "File Download", "Blocked by phone policy", LogStatus.BLOCKED)
+                sendJson(out, 403, JSONObject().put("error", "File Vault is disabled on phone"))
+                return
+            }
+            val fileName = req.query["name"].orEmpty()
+            val file = vaultFileManager.resolveSafeFile(fileName)
+            if (file == null || !file.exists() || !file.isFile) {
+                sendJson(out, 404, JSONObject().put("error", "File not found in vault"))
+                return
+            }
+            DeckLinkStateStore.logCommand(clientIp, "File Download", file.name, LogStatus.ALLOWED)
+            sendBytes(
+                out = out,
+                statusCode = 200,
+                contentType = vaultFileManager.guessMimeType(file.name),
+                bytes = file.readBytes(),
+                extraHeaders = mapOf(
+                    "Content-Disposition" to "attachment; filename=\"${file.name.replace("\"", "")}\""
+                )
+            )
+            return
+        }
+
+        // All remaining /api/* endpoints strictly require Authorization: Bearer <token>
+        val bearerToken = extractBearer(req.headers)
+        val session = DeckLinkStateStore.validateBearerToken(bearerToken)
+        if (session == null) {
+            sendJson(out, 401, JSONObject().put("error", "Authentication required"))
+            return
+        }
+
+        val caps = DeckLinkStateStore.settings.value.capabilities
+
+        when {
+            req.method == "POST" && req.path == "/api/auth/logout" -> {
+                DeckLinkStateStore.revokeSession(session.sessionId)
+                sendJson(out, 200, JSONObject().put("ok", true))
+            }
+
+            req.method == "GET" && req.path == "/api/status" -> {
+                val telemetry = telemetryProvider.collect()
+                val readiness = DeckLinkStateStore.readiness.value
+                val json = JSONObject()
+                    .put("deviceModel", telemetry.deviceModel)
+                    .put("androidVersion", telemetry.androidVersion)
+                    .put("ipAddress", telemetry.ipAddress)
+                    .put("networkType", telemetry.networkType)
+                    .put("batteryPercent", telemetry.batteryPercent)
+                    .put("isCharging", telemetry.isCharging)
+                    .put("batteryTempC", telemetry.batteryTempC.toDouble())
+                    .put("ramUsedMb", telemetry.ramUsedMb)
+                    .put("ramTotalMb", telemetry.ramTotalMb)
+                    .put("storageUsedGb", telemetry.storageUsedGb.toDouble())
+                    .put("storageTotalGb", telemetry.storageTotalGb.toDouble())
+                    .put("screenWidth", telemetry.screenWidthPx)
+                    .put("screenHeight", telemetry.screenHeightPx)
+                    .put("uptimeMinutes", telemetry.uptimeMinutes)
+                    .put(
+                        "volumes",
+                        JSONObject()
+                            .put("media", telemetry.volumes.media)
+                            .put("mediaMax", telemetry.volumes.mediaMax)
+                            .put("ring", telemetry.volumes.ring)
+                            .put("ringMax", telemetry.volumes.ringMax)
+                            .put("notification", telemetry.volumes.notification)
+                            .put("notificationMax", telemetry.volumes.notificationMax)
+                            .put("alarm", telemetry.volumes.alarm)
+                            .put("alarmMax", telemetry.volumes.alarmMax)
+                            .put("ringerMode", telemetry.volumes.ringerMode)
+                    )
+                    .put(
+                        "readiness",
+                        JSONObject()
+                            .put("screenMirrorActive", readiness.screenMirrorActive)
+                            .put("accessibilityConnected", DeckLinkAccessibilityService.isConnected())
+                            .put("notificationBridgeConnected", DeckLinkNotificationListener.isConnected())
+                            .put("torchEnabled", readiness.torchEnabled)
+                            .put("finderRingActive", readiness.finderRingActive)
+                    )
+                    .put(
+                        "capabilities",
+                        JSONObject()
+                            .put("screenMirror", caps.screenMirror)
+                            .put("remoteTouchAndInput", caps.remoteTouchAndInput)
+                            .put("audioAndMedia", caps.audioAndMedia)
+                            .put("clipboardSync", caps.clipboardSync)
+                            .put("appLauncher", caps.appLauncher)
+                            .put("fileVault", caps.fileVault)
+                            .put("hardwareActions", caps.hardwareActions)
+                            .put("notificationBridge", caps.notificationBridge)
+                    )
+                sendJson(out, 200, json)
+            }
+
+            // Remote Touch, Gestures, System Keys & Text Input
+            req.method == "POST" && req.path == "/api/input/tap" -> {
+                if (!requireCapability(caps.remoteTouchAndInput, clientIp, "Remote Tap", out)) return
+                val a11y = requireAccessibility(clientIp, "Remote Tap", out) ?: return
+                val body = parseJson(req.body)
+                val x = body.optDouble("x", -1.0).toFloat()
+                val y = body.optDouble("y", -1.0).toFloat()
+                val duration = body.optLong("durationMs", 70L)
+                if (x !in 0f..1f || y !in 0f..1f) {
+                    sendJson(out, 400, JSONObject().put("error", "Coordinates must be normalized [0..1]"))
+                    return
+                }
+                val ok = a11y.performNormalizedTap(x, y, duration)
+                DeckLinkStateStore.logCommand(clientIp, "Remote Tap", "(${"%.2f".format(x)}, ${"%.2f".format(y)})", LogStatus.ALLOWED)
+                sendJson(out, 200, JSONObject().put("ok", ok))
+            }
+
+            req.method == "POST" && req.path == "/api/input/swipe" -> {
+                if (!requireCapability(caps.remoteTouchAndInput, clientIp, "Remote Swipe", out)) return
+                val a11y = requireAccessibility(clientIp, "Remote Swipe", out) ?: return
+                val body = parseJson(req.body)
+                val x1 = body.optDouble("x1", -1.0).toFloat()
+                val y1 = body.optDouble("y1", -1.0).toFloat()
+                val x2 = body.optDouble("x2", -1.0).toFloat()
+                val y2 = body.optDouble("y2", -1.0).toFloat()
+                val duration = body.optLong("durationMs", 240L)
+                if (x1 !in 0f..1f || y1 !in 0f..1f || x2 !in 0f..1f || y2 !in 0f..1f) {
+                    sendJson(out, 400, JSONObject().put("error", "Swipe coordinates must be normalized [0..1]"))
+                    return
+                }
+                val ok = a11y.performNormalizedSwipe(x1, y1, x2, y2, duration)
+                DeckLinkStateStore.logCommand(clientIp, "Remote Swipe", "(${"%.2f".format(x1)},${"%.2f".format(y1)}) -> (${"%.2f".format(x2)},${"%.2f".format(y2)})", LogStatus.ALLOWED)
+                sendJson(out, 200, JSONObject().put("ok", ok))
+            }
+
+            req.method == "POST" && req.path == "/api/input/global" -> {
+                if (!requireCapability(caps.remoteTouchAndInput, clientIp, "Global Key", out)) return
+                val a11y = requireAccessibility(clientIp, "Global Key", out) ?: return
+                val action = parseJson(req.body).optString("action", "")
+                val ok = a11y.performGlobalKey(action)
+                DeckLinkStateStore.logCommand(clientIp, "System Key", action.uppercase(), if (ok) LogStatus.ALLOWED else LogStatus.BLOCKED)
+                sendJson(out, if (ok) 200 else 400, JSONObject().put("ok", ok))
+            }
+
+            req.method == "POST" && req.path == "/api/input/text" -> {
+                if (!requireCapability(caps.remoteTouchAndInput, clientIp, "Remote Typing", out)) return
+                val a11y = requireAccessibility(clientIp, "Remote Typing", out) ?: return
+                val body = parseJson(req.body)
+                val clear = body.optBoolean("clear", false)
+                val ok = if (clear) {
+                    a11y.clearFocusedText()
+                } else {
+                    val text = body.optString("text", "")
+                    val append = body.optBoolean("append", true)
+                    a11y.inputText(text, append)
+                }
+                DeckLinkStateStore.logCommand(clientIp, "Remote Keyboard", if (clear) "Cleared field" else "Typed text", if (ok) LogStatus.ALLOWED else LogStatus.BLOCKED)
+                sendJson(out, 200, JSONObject().put("ok", ok))
+            }
+
+            req.method == "GET" && req.path == "/api/ui/tree" -> {
+                if (!requireCapability(caps.remoteTouchAndInput, clientIp, "UI Tree", out)) return
+                val a11y = requireAccessibility(clientIp, "UI Tree", out) ?: return
+                val nodes = a11y.inspectInteractiveNodes()
+                val arr = JSONArray()
+                nodes.forEach { node ->
+                    arr.put(
+                        JSONObject()
+                            .put("index", node.index)
+                            .put("label", node.label)
+                            .put("className", node.className)
+                            .put("clickable", node.clickable)
+                            .put("editable", node.editable)
+                            .put("x", node.centerX.toDouble())
+                            .put("y", node.centerY.toDouble())
+                    )
+                }
+                sendJson(out, 200, JSONObject().put("nodes", arr))
+            }
+
+            req.method == "POST" && req.path == "/api/input/node-click" -> {
+                if (!requireCapability(caps.remoteTouchAndInput, clientIp, "Node Click", out)) return
+                val a11y = requireAccessibility(clientIp, "Node Click", out) ?: return
+                val index = parseJson(req.body).optInt("index", -1)
+                val ok = a11y.clickInteractiveNode(index)
+                DeckLinkStateStore.logCommand(clientIp, "UI Node Click", "Element #$index", if (ok) LogStatus.ALLOWED else LogStatus.BLOCKED)
+                sendJson(out, 200, JSONObject().put("ok", ok))
+            }
+
+            // Audio & Media Controls
+            req.method == "POST" && req.path == "/api/audio/volume" -> {
+                if (!requireCapability(caps.audioAndMedia, clientIp, "Volume Control", out)) return
+                val body = parseJson(req.body)
+                val stream = body.optString("stream", "")
+                val level = body.optInt("level", -1)
+                val ok = systemControl.setStreamVolume(stream, level)
+                DeckLinkStateStore.logCommand(clientIp, "Volume Set", "$stream -> $level", if (ok) LogStatus.ALLOWED else LogStatus.BLOCKED)
+                sendJson(out, if (ok) 200 else 400, JSONObject().put("ok", ok))
+            }
+
+            req.method == "POST" && req.path == "/api/audio/ringer" -> {
+                if (!requireCapability(caps.audioAndMedia, clientIp, "Ringer Mode", out)) return
+                val mode = parseJson(req.body).optString("mode", "")
+                val ok = systemControl.setRingerMode(mode)
+                DeckLinkStateStore.logCommand(clientIp, "Ringer Mode", mode.uppercase(), if (ok) LogStatus.ALLOWED else LogStatus.BLOCKED)
+                sendJson(out, if (ok) 200 else 400, JSONObject().put("ok", ok))
+            }
+
+            req.method == "POST" && req.path == "/api/media/key" -> {
+                if (!requireCapability(caps.audioAndMedia, clientIp, "Media Transport", out)) return
+                val command = parseJson(req.body).optString("command", "")
+                val ok = systemControl.dispatchMediaCommand(command)
+                DeckLinkStateStore.logCommand(clientIp, "Media Control", command.uppercase(), if (ok) LogStatus.ALLOWED else LogStatus.BLOCKED)
+                sendJson(out, if (ok) 200 else 400, JSONObject().put("ok", ok))
+            }
+
+            // Bidirectional Clipboard Sync
+            req.method == "GET" && req.path == "/api/clipboard" -> {
+                if (!requireCapability(caps.clipboardSync, clientIp, "Clipboard Read", out)) return
+                val text = systemControl.readClipboardText()
+                DeckLinkStateStore.logCommand(clientIp, "Clipboard Pull", "${text.length} chars", LogStatus.ALLOWED)
+                sendJson(out, 200, JSONObject().put("text", text))
+            }
+
+            req.method == "POST" && req.path == "/api/clipboard" -> {
+                if (!requireCapability(caps.clipboardSync, clientIp, "Clipboard Push", out)) return
+                val text = parseJson(req.body).optString("text", "")
+                val ok = systemControl.writeClipboardText(text, source = "Laptop ($clientIp)")
+                DeckLinkStateStore.logCommand(clientIp, "Clipboard Push", "${text.length} chars", if (ok) LogStatus.ALLOWED else LogStatus.BLOCKED)
+                sendJson(out, 200, JSONObject().put("ok", ok))
+            }
+
+            // App Launcher
+            req.method == "GET" && req.path == "/api/apps" -> {
+                if (!requireCapability(caps.appLauncher, clientIp, "List Apps", out)) return
+                val apps = systemControl.getLaunchableApps()
+                val arr = JSONArray()
+                apps.forEach { app ->
+                    arr.put(JSONObject().put("label", app.label).put("packageName", app.packageName))
+                }
+                sendJson(out, 200, JSONObject().put("apps", arr))
+            }
+
+            req.method == "POST" && req.path == "/api/apps/launch" -> {
+                if (!requireCapability(caps.appLauncher, clientIp, "Launch App", out)) return
+                val pkg = parseJson(req.body).optString("packageName", "")
+                val ok = systemControl.launchApp(pkg)
+                DeckLinkStateStore.logCommand(clientIp, "Launch App", pkg, if (ok) LogStatus.ALLOWED else LogStatus.BLOCKED)
+                sendJson(out, if (ok) 200 else 404, JSONObject().put("ok", ok))
+            }
+
+            // Notification Bridge
+            req.method == "GET" && req.path == "/api/notifications" -> {
+                if (!requireCapability(caps.notificationBridge, clientIp, "Read Notifications", out)) return
+                DeckLinkNotificationListener.instance?.refreshSnapshot()
+                val arr = JSONArray()
+                DeckLinkStateStore.notifications.value.forEach { item ->
+                    arr.put(
+                        JSONObject()
+                            .put("key", item.key)
+                            .put("appName", item.appName)
+                            .put("title", item.title)
+                            .put("text", item.text)
+                            .put("postedAtMs", item.postedAtMs)
+                            .put("isClearable", item.isClearable)
+                    )
+                }
+                sendJson(
+                    out,
+                    200,
+                    JSONObject()
+                        .put("connected", DeckLinkNotificationListener.isConnected())
+                        .put("notifications", arr)
+                )
+            }
+
+            req.method == "POST" && req.path == "/api/notifications/dismiss" -> {
+                if (!requireCapability(caps.notificationBridge, clientIp, "Dismiss Notification", out)) return
+                val key = parseJson(req.body).optString("key", "")
+                val ok = DeckLinkNotificationListener.instance?.dismissByKey(key) ?: false
+                DeckLinkStateStore.logCommand(clientIp, "Dismiss Notification", if (ok) "Cleared" else "Unavailable", if (ok) LogStatus.ALLOWED else LogStatus.BLOCKED)
+                sendJson(out, 200, JSONObject().put("ok", ok))
+            }
+
+            // Hardware Actions & Quick Tools
+            req.method == "POST" && req.path == "/api/device/torch" -> {
+                if (!requireCapability(caps.hardwareActions, clientIp, "Flashlight", out)) return
+                val enabled = parseJson(req.body).optBoolean("enabled", false)
+                val ok = systemControl.setTorchEnabled(enabled)
+                DeckLinkStateStore.logCommand(clientIp, "Flashlight", if (enabled) "ON" else "OFF", if (ok) LogStatus.ALLOWED else LogStatus.BLOCKED)
+                sendJson(out, 200, JSONObject().put("ok", ok).put("enabled", DeckLinkStateStore.readiness.value.torchEnabled))
+            }
+
+            req.method == "POST" && req.path == "/api/device/ring" -> {
+                if (!requireCapability(caps.hardwareActions, clientIp, "Find Phone Ring", out)) return
+                val active = parseJson(req.body).optBoolean("active", true)
+                val ok = if (active) systemControl.startFinderRing() else {
+                    systemControl.stopFinderRing()
+                    true
+                }
+                DeckLinkStateStore.logCommand(clientIp, "Find Phone Ring", if (active) "Started chime" else "Stopped chime", LogStatus.ALLOWED)
+                sendJson(out, 200, JSONObject().put("ok", ok).put("active", DeckLinkStateStore.readiness.value.finderRingActive))
+            }
+
+            req.method == "POST" && req.path == "/api/device/vibrate" -> {
+                if (!requireCapability(caps.hardwareActions, clientIp, "Vibrate", out)) return
+                val durationMs = parseJson(req.body).optLong("durationMs", 240L)
+                systemControl.triggerVibration(durationMs)
+                DeckLinkStateStore.logCommand(clientIp, "Haptic Ping", "${durationMs.coerceIn(40L, 1200L)}ms", LogStatus.ALLOWED)
+                sendJson(out, 200, JSONObject().put("ok", true))
+            }
+
+            req.method == "POST" && req.path == "/api/device/open-url" -> {
+                if (!requireCapability(caps.hardwareActions, clientIp, "Open URL", out)) return
+                val url = parseJson(req.body).optString("url", "")
+                val ok = systemControl.openValidatedWebUrl(url)
+                DeckLinkStateStore.logCommand(clientIp, "Open URL", url.take(80), if (ok) LogStatus.ALLOWED else LogStatus.BLOCKED)
+                sendJson(
+                    out,
+                    if (ok) 200 else 400,
+                    JSONObject().put("ok", ok).apply {
+                        if (!ok) put("error", "Only valid http:// or https:// URLs are allowed")
+                    }
+                )
+            }
+
+            // Automation Macros
+            req.method == "GET" && req.path == "/api/macros" -> {
+                val arr = JSONArray()
+                DeckLinkStateStore.builtInMacros.forEach { macro ->
+                    arr.put(
+                        JSONObject()
+                            .put("id", macro.id)
+                            .put("title", macro.title)
+                            .put("subtitle", macro.subtitle)
+                            .put("steps", macro.stepsSummary)
+                    )
+                }
+                sendJson(out, 200, JSONObject().put("macros", arr))
+            }
+
+            req.method == "POST" && req.path == "/api/macros/run" -> {
+                if (!requireCapability(caps.hardwareActions && caps.audioAndMedia, clientIp, "Run Macro", out)) return
+                val id = parseJson(req.body).optString("id", "")
+                val (ok, msg) = systemControl.runMacro(id)
+                DeckLinkStateStore.logCommand(clientIp, "Macro Executed", "$id: $msg", if (ok) LogStatus.ALLOWED else LogStatus.BLOCKED)
+                sendJson(out, if (ok) 200 else 400, JSONObject().put("ok", ok).put("message", msg))
+            }
+
+            // Shared File Vault
+            req.method == "GET" && req.path == "/api/files" -> {
+                if (!requireCapability(caps.fileVault, clientIp, "List Vault Files", out)) return
+                val arr = JSONArray()
+                vaultFileManager.listFiles().forEach { item ->
+                    arr.put(
+                        JSONObject()
+                            .put("name", item.name)
+                            .put("sizeBytes", item.sizeBytes)
+                            .put("lastModifiedMs", item.lastModifiedMs)
+                            .put("mimeType", item.mimeType)
+                    )
+                }
+                sendJson(out, 200, JSONObject().put("files", arr))
+            }
+
+            req.method == "POST" && req.path == "/api/files/upload" -> {
+                if (!requireCapability(caps.fileVault, clientIp, "Upload Vault File", out)) return
+                val rawName = req.query["name"].orEmpty().ifBlank { "upload_${System.currentTimeMillis()}.bin" }
+                val res = vaultFileManager.saveBytes(rawName, req.body)
+                if (res.isSuccess) {
+                    val saved = res.getOrThrow()
+                    DeckLinkStateStore.logCommand(clientIp, "File Uploaded", "${saved.name} (${saved.sizeBytes} B)", LogStatus.ALLOWED)
+                    sendJson(
+                        out,
+                        200,
+                        JSONObject()
+                            .put("ok", true)
+                            .put("name", saved.name)
+                            .put("sizeBytes", saved.sizeBytes)
+                    )
+                } else {
+                    sendJson(out, 400, JSONObject().put("error", res.exceptionOrNull()?.message ?: "Upload failed"))
+                }
+            }
+
+            req.method == "DELETE" && req.path == "/api/files" -> {
+                if (!requireCapability(caps.fileVault, clientIp, "Delete Vault File", out)) return
+                val name = req.query["name"].orEmpty()
+                val ok = vaultFileManager.deleteFile(name)
+                DeckLinkStateStore.logCommand(clientIp, "File Deleted", name, if (ok) LogStatus.ALLOWED else LogStatus.BLOCKED)
+                sendJson(out, if (ok) 200 else 404, JSONObject().put("ok", ok))
+            }
+
+            else -> {
+                sendJson(out, 404, JSONObject().put("error", "Endpoint not found"))
+            }
+        }
+    }
+
+    private suspend fun streamMjpeg(socket: Socket, out: OutputStream, ticket: String) {
+        socket.soTimeout = 0
+        val header = buildString {
+            append("HTTP/1.1 200 OK\r\n")
+            append("Content-Type: multipart/x-mixed-replace; boundary=$STREAM_BOUNDARY\r\n")
+            append("Cache-Control: no-store, no-cache, must-revalidate\r\n")
+            append("X-Content-Type-Options: nosniff\r\n")
+            append("Connection: close\r\n\r\n")
+        }
+        out.write(header.toByteArray(Charsets.US_ASCII))
+        out.flush()
+
+        var lastSentTs = 0L
+        while (!socket.isClosed) {
+            if (DeckLinkStateStore.validateStreamTicket(ticket) == null) break
+            if (!DeckLinkStateStore.settings.value.capabilities.screenMirror) break
+            if (!DeckLinkStateStore.readiness.value.screenMirrorActive) {
+                delay(250L)
+                continue
+            }
+            val frame = DeckLinkStateStore.latestScreenJpeg
+            val ts = DeckLinkStateStore.latestFrameTimestampMs
+            if (frame != null && ts != lastSentTs) {
+                lastSentTs = ts
+                val partHeader = buildString {
+                    append("--$STREAM_BOUNDARY\r\n")
+                    append("Content-Type: image/jpeg\r\n")
+                    append("Content-Length: ${frame.size}\r\n\r\n")
+                }
+                val wrote = runCatching {
+                    out.write(partHeader.toByteArray(Charsets.US_ASCII))
+                    out.write(frame)
+                    out.write("\r\n".toByteArray(Charsets.US_ASCII))
+                    out.flush()
+                    true
+                }.getOrDefault(false)
+                if (!wrote) break
+            }
+            val fps = DeckLinkStateStore.settings.value.mirrorFps.coerceIn(3, 20)
+            delay((1000L / fps).coerceAtLeast(45L))
+        }
+    }
+
+    private fun requireCapability(enabled: Boolean, clientIp: String, action: String, out: OutputStream): Boolean {
+        if (!enabled) {
+            DeckLinkStateStore.logCommand(clientIp, action, "Blocked by phone capability switch", LogStatus.BLOCKED)
+            sendJson(out, 403, JSONObject().put("error", "$action is disabled in DeckLink Controls on your phone"))
+            return false
+        }
+        return true
+    }
+
+    private fun requireAccessibility(clientIp: String, action: String, out: OutputStream): DeckLinkAccessibilityService? {
+        val svc = DeckLinkAccessibilityService.instance
+        if (svc == null) {
+            DeckLinkStateStore.logCommand(clientIp, action, "Accessibility service not enabled", LogStatus.BLOCKED)
+            sendJson(out, 503, JSONObject().put("error", "Enable DeckLink Accessibility Service on your phone for remote touch & keys"))
+        }
+        return svc
+    }
+
+    private fun extractBearer(headers: Map<String, String>): String? {
+        val auth = headers["authorization"] ?: return null
+        if (!auth.startsWith("Bearer ", ignoreCase = true)) return null
+        return auth.substring(7).trim().ifBlank { null }
+    }
+
+    private fun parseJson(bytes: ByteArray): JSONObject {
+        if (bytes.isEmpty()) return JSONObject()
+        return runCatching { JSONObject(bytes.toString(Charsets.UTF_8)) }.getOrElse { JSONObject() }
+    }
+
+    private fun sendJson(out: OutputStream, statusCode: Int, json: JSONObject) {
+        sendBytes(out, statusCode, "application/json; charset=utf-8", json.toString().toByteArray(Charsets.UTF_8))
+    }
+
+    private fun sendBytes(
+        out: OutputStream,
+        statusCode: Int,
+        contentType: String,
+        bytes: ByteArray,
+        extraHeaders: Map<String, String> = emptyMap()
+    ) {
+        val reason = when (statusCode) {
+            200 -> "OK"
+            400 -> "Bad Request"
+            401 -> "Unauthorized"
+            403 -> "Forbidden"
+            404 -> "Not Found"
+            413 -> "Payload Too Large"
+            429 -> "Too Many Requests"
+            503 -> "Service Unavailable"
+            else -> "Error"
+        }
+        val headers = buildString {
+            append("HTTP/1.1 $statusCode $reason\r\n")
+            append("Content-Type: $contentType\r\n")
+            append("Content-Length: ${bytes.size}\r\n")
+            append("Cache-Control: no-store\r\n")
+            append("X-Content-Type-Options: nosniff\r\n")
+            append("Referrer-Policy: no-referrer\r\n")
+            extraHeaders.forEach { (k, v) -> append("$k: $v\r\n") }
+            append("Connection: close\r\n\r\n")
+        }
+        out.write(headers.toByteArray(Charsets.US_ASCII))
+        out.write(bytes)
+        out.flush()
+    }
+}

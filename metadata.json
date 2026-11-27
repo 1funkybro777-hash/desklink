@@ -1,0 +1,6 @@
+{
+  "name": "DeckLink",
+  "description": "Control your Android phone from any laptop browser over local Wi-Fi with live screen mirror, remote touch, media, clipboard, apps, file vault, and live telemetry.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
