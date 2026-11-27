@@ -18,18 +18,19 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Dashboard
+import androidx.compose.material.icons.outlined.Devices
+import androidx.compose.material.icons.outlined.FolderShared
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material.icons.outlined.Tune
-import androidx.compose.material.icons.rounded.Dashboard
+import androidx.compose.material.icons.rounded.Devices
+import androidx.compose.material.icons.rounded.FolderShared
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Settings
-import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.Scaffold
@@ -57,6 +58,8 @@ import com.example.ui.screens.ActivityScreen
 import com.example.ui.screens.ControlsScreen
 import com.example.ui.screens.DeckScreen
 import com.example.ui.screens.SettingsScreen
+import com.example.ui.theme.CobaltPrimary
+import com.example.ui.theme.PeriwinkleSoft
 
 private data class NavDestination(
     val tab: DeckTab,
@@ -67,8 +70,8 @@ private data class NavDestination(
 )
 
 private val Destinations = listOf(
-    NavDestination(DeckTab.DECK, R.string.nav_deck, Icons.Rounded.Dashboard, Icons.Outlined.Dashboard, "nav_deck"),
-    NavDestination(DeckTab.CONTROLS, R.string.nav_controls, Icons.Rounded.Tune, Icons.Outlined.Tune, "nav_controls"),
+    NavDestination(DeckTab.DECK, R.string.nav_deck, Icons.Rounded.Devices, Icons.Outlined.Devices, "nav_deck"),
+    NavDestination(DeckTab.CONTROLS, R.string.nav_controls, Icons.Rounded.FolderShared, Icons.Outlined.FolderShared, "nav_controls"),
     NavDestination(DeckTab.ACTIVITY, R.string.nav_activity, Icons.Rounded.History, Icons.Outlined.History, "nav_activity"),
     NavDestination(DeckTab.SETTINGS, R.string.nav_settings, Icons.Rounded.Settings, Icons.Outlined.Settings, "nav_settings")
 )
@@ -81,12 +84,10 @@ fun DeckLinkApp(viewModel: DeckLinkViewModel) {
     val selectedTab by viewModel.selectedTab.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // Return to primary Deck tab on Back from secondary tabs
     BackHandler(enabled = selectedTab != DeckTab.DECK) {
         viewModel.selectTab(DeckTab.DECK)
     }
 
-    // Refresh service connection badges when user returns from Android Accessibility/Notification settings
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
@@ -103,11 +104,9 @@ fun DeckLinkApp(viewModel: DeckLinkViewModel) {
         }
     }
 
-    // Runtime notification permission launcher (Android 13+) before starting foreground host
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { _ ->
-        // Foreground host still works even if notification is declined; proceed cleanly
         viewModel.startServer()
     }
 
@@ -127,7 +126,6 @@ fun DeckLinkApp(viewModel: DeckLinkViewModel) {
         }
     }
 
-    // MediaProjection screen capture consent launcher
     val mediaProjectionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -142,7 +140,6 @@ fun DeckLinkApp(viewModel: DeckLinkViewModel) {
         mediaProjectionLauncher.launch(mgr.createScreenCaptureIntent())
     }
 
-    // Play-compliant Android Photo Picker (zero storage permissions required)
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri ->
@@ -151,7 +148,6 @@ fun DeckLinkApp(viewModel: DeckLinkViewModel) {
         }
     }
 
-    // Play-compliant Storage Access Framework document picker (zero storage permissions required)
     val documentPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri ->
@@ -170,7 +166,8 @@ fun DeckLinkApp(viewModel: DeckLinkViewModel) {
             bottomBar = {
                 if (!useNavigationRail) {
                     NavigationBar(
-                        containerColor = MaterialTheme.colorScheme.surface
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        tonalElevation = 0.dp
                     ) {
                         Destinations.forEach { dest ->
                             val isSelected = selectedTab == dest.tab
@@ -184,6 +181,11 @@ fun DeckLinkApp(viewModel: DeckLinkViewModel) {
                                     )
                                 },
                                 label = { Text(stringResource(dest.labelRes)) },
+                                colors = NavigationBarItemDefaults.colors(
+                                    selectedIconColor = CobaltPrimary,
+                                    selectedTextColor = CobaltPrimary,
+                                    indicatorColor = PeriwinkleSoft
+                                ),
                                 modifier = Modifier.testTag(dest.testTag)
                             )
                         }
@@ -232,6 +234,10 @@ fun DeckLinkApp(viewModel: DeckLinkViewModel) {
                         onOpenNotificationSettings = {
                             runCatching { context.startActivity(viewModel.buildNotificationAccessSettingsIntent()) }
                         },
+                        onOpenShareHub = { viewModel.selectTab(DeckTab.CONTROLS) },
+                        onToggleTorch = viewModel::toggleTorchLocally,
+                        onRunDeskMode = { viewModel.runMacroLocally("desk_mode") },
+                        onLaunchApp = viewModel::launchAppLocally,
                         onRotatePin = viewModel::rotatePairingPin,
                         onCopyUrl = { viewModel.copyToClipboard("Console URL", state.serverUrl) },
                         onCopyAdbCommand = { viewModel.copyToClipboard("USB Forward Command", state.adbForwardCommand) },
@@ -244,8 +250,9 @@ fun DeckLinkApp(viewModel: DeckLinkViewModel) {
                         state = state,
                         onUpdateCapability = viewModel::updateCapability,
                         onRunMacro = viewModel::runMacroLocally,
-                        onToggleTorch = viewModel::toggleTorchLocally,
                         onStopFinderRing = viewModel::stopFinderRingLocally,
+                        onPushClipboard = viewModel::pushClipboardText,
+                        onCopyClipboard = { text -> viewModel.copyToClipboard("Clipboard Entry", text) },
                         onPickMediaForVault = {
                             photoPickerLauncher.launch(
                                 PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)
@@ -268,7 +275,6 @@ fun DeckLinkApp(viewModel: DeckLinkViewModel) {
                     DeckTab.ACTIVITY -> ActivityScreen(
                         state = state,
                         onClearLogs = viewModel::clearLogs,
-                        onCopyClipboardEntry = { text -> viewModel.copyToClipboard("Clipboard Entry", text) },
                         modifier = contentModifier
                     )
 

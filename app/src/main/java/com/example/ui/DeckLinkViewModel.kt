@@ -21,6 +21,7 @@ import com.example.model.ClipboardEntry
 import com.example.model.CommandLogEntry
 import com.example.model.DeviceTelemetry
 import com.example.model.LaptopSession
+import com.example.model.LaunchableApp
 import com.example.model.LogStatus
 import com.example.model.MirrorQuality
 import com.example.model.RemoteCapabilities
@@ -61,6 +62,7 @@ data class DeckLinkUiState(
     val clipboardHistory: List<ClipboardEntry> = emptyList(),
     val telemetry: DeviceTelemetry = DeviceTelemetry(),
     val vaultFiles: List<VaultFileItem> = emptyList(),
+    val installedApps: List<LaunchableApp> = emptyList(),
     val macros: List<AutomationMacro> = DeckLinkStateStore.builtInMacros
 ) {
     val serverUrl: String
@@ -80,6 +82,7 @@ class DeckLinkViewModel(application: Application) : AndroidViewModel(application
 
     private val _telemetry = MutableStateFlow(telemetryProvider.collect())
     private val _vaultFiles = MutableStateFlow<List<VaultFileItem>>(emptyList())
+    private val _installedApps = MutableStateFlow<List<LaunchableApp>>(emptyList())
 
     private val _snackbarEvents = MutableSharedFlow<String>(extraBufferCapacity = 8)
     val snackbarEvents: SharedFlow<String> = _snackbarEvents.asSharedFlow()
@@ -95,7 +98,8 @@ class DeckLinkViewModel(application: Application) : AndroidViewModel(application
         DeckLinkStateStore.commandLogs,
         DeckLinkStateStore.clipboardHistory,
         _telemetry,
-        _vaultFiles
+        _vaultFiles,
+        _installedApps
     ) { values ->
         @Suppress("UNCHECKED_CAST")
         DeckLinkUiState(
@@ -106,7 +110,8 @@ class DeckLinkViewModel(application: Application) : AndroidViewModel(application
             logs = values[4] as List<CommandLogEntry>,
             clipboardHistory = values[5] as List<ClipboardEntry>,
             telemetry = values[6] as DeviceTelemetry,
-            vaultFiles = values[7] as List<VaultFileItem>
+            vaultFiles = values[7] as List<VaultFileItem>,
+            installedApps = values[8] as List<LaunchableApp>
         )
     }.stateIn(
         scope = viewModelScope,
@@ -126,6 +131,7 @@ class DeckLinkViewModel(application: Application) : AndroidViewModel(application
             }
         }
         refreshVaultFiles()
+        loadInstalledApps()
         startTelemetryTicker()
     }
 
@@ -152,6 +158,17 @@ class DeckLinkViewModel(application: Application) : AndroidViewModel(application
             _telemetry.value = telemetryProvider.collect()
             _vaultFiles.value = vaultFileManager.listFiles()
         }
+    }
+
+    private fun loadInstalledApps() {
+        viewModelScope.launch(Dispatchers.IO) {
+            _installedApps.value = localControl.getLaunchableApps()
+        }
+    }
+
+    fun launchAppLocally(packageName: String, label: String) {
+        val ok = localControl.launchApp(packageName)
+        emitToast(if (ok) "Opening $label" else "Unable to open $label")
     }
 
     private fun startTelemetryTicker() {
@@ -217,7 +234,15 @@ class DeckLinkViewModel(application: Application) : AndroidViewModel(application
     fun copyToClipboard(label: String, text: String) {
         val cm = appContext.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         cm.setPrimaryClip(ClipData.newPlainText(label, text))
+        DeckLinkStateStore.recordClipboard(text, "Phone")
         emitToast("Copied $label")
+    }
+
+    fun pushClipboardText(text: String) {
+        val clean = text.trim()
+        if (clean.isEmpty()) return
+        localControl.writeClipboardText(clean, source = "Share Hub")
+        emitToast("Saved to Share Hub clipboard")
     }
 
     fun updateCapability(transform: (RemoteCapabilities) -> RemoteCapabilities) {
@@ -300,7 +325,7 @@ class DeckLinkViewModel(application: Application) : AndroidViewModel(application
                 if (result.isSuccess) {
                     val saved = result.getOrThrow()
                     DeckLinkStateStore.logCommand("local", "Vault File Added", saved.name, LogStatus.SYSTEM)
-                    emitToast("Added ${saved.name} to Vault")
+                    emitToast("Added ${saved.name} to Share Hub")
                     refreshVaultFiles()
                 } else {
                     emitToast(result.exceptionOrNull()?.message ?: "Could not import file")

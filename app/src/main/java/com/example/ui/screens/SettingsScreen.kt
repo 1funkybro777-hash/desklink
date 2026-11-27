@@ -1,6 +1,7 @@
 package com.example.ui.screens
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -42,6 +43,9 @@ import androidx.compose.ui.unit.dp
 import com.example.R
 import com.example.model.MirrorQuality
 import com.example.ui.DeckLinkUiState
+import com.example.ui.theme.CobaltPrimary
+import com.example.ui.theme.DeepNavyInk
+import com.example.ui.theme.PeriwinkleHero
 
 @Composable
 fun SettingsScreen(
@@ -56,32 +60,33 @@ fun SettingsScreen(
     var portInput by remember(state.settings.port) { mutableStateOf(state.settings.port.toString()) }
 
     Box(
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background),
         contentAlignment = Alignment.TopCenter
     ) {
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .widthIn(max = 680.dp),
-            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .widthIn(max = 620.dp),
+            contentPadding = PaddingValues(horizontal = 18.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             item {
                 Column {
                     Text(
-                        text = "Host & Security",
+                        text = "Settings",
                         style = MaterialTheme.typography.headlineMedium,
                         color = MaterialTheme.colorScheme.onBackground
                     )
                     Text(
-                        text = "Configure local server port, live mirror streaming, and laptop access security.",
+                        text = "Server port, live mirror streaming quality, and laptop security controls.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
 
-            // Network Port
             item {
                 Card(
                     shape = MaterialTheme.shapes.large,
@@ -95,7 +100,7 @@ fun SettingsScreen(
                         Text(
                             text = "LOCAL SERVER PORT",
                             style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.primary
+                            color = CobaltPrimary
                         )
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -114,6 +119,11 @@ fun SettingsScreen(
                             )
                             Button(
                                 onClick = { onUpdatePort(portInput) },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = PeriwinkleHero,
+                                    contentColor = DeepNavyInk
+                                ),
+                                shape = MaterialTheme.shapes.medium,
                                 modifier = Modifier
                                     .height(54.dp)
                                     .testTag("apply_port_button")
@@ -129,12 +139,12 @@ fun SettingsScreen(
                         ) {
                             Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
                                 Text(
-                                    text = "Keep CPU Awake While Hosting",
+                                    text = "Keep Awake While Hosting",
                                     style = MaterialTheme.typography.titleMedium,
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
-                                    text = "Prevents Wi-Fi server sleep during active laptop sessions.",
+                                    text = "Prevents Wi-Fi sleep while your laptop is connected.",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -149,7 +159,6 @@ fun SettingsScreen(
                 }
             }
 
-            // Stream Tuning
             item {
                 Card(
                     shape = MaterialTheme.shapes.large,
@@ -161,9 +170,9 @@ fun SettingsScreen(
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Text(
-                            text = "SCREEN MIRROR PERFORMANCE",
+                            text = "SCREEN STREAMING QUALITY",
                             style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.primary
+                            color = CobaltPrimary
                         )
 
                         Text(
@@ -186,7 +195,7 @@ fun SettingsScreen(
                         }
 
                         Text(
-                            text = "Frame Rate Target",
+                            text = "Target Frame Rate",
                             style = MaterialTheme.typography.titleSmall,
                             color = MaterialTheme.colorScheme.onSurface
                         )
@@ -207,7 +216,6 @@ fun SettingsScreen(
                 }
             }
 
-            // Security Safeguards & Emergency Revoke
             item {
                 Card(
                     shape = MaterialTheme.shapes.large,
@@ -228,17 +236,17 @@ fun SettingsScreen(
                                 tint = MaterialTheme.colorScheme.secondary
                             )
                             Text(
-                                text = "ACTIVE SECURITY SAFEGUARDS",
+                                text = "PRIVACY & SECURITY",
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.secondary
                             )
                         }
 
                         Text(
-                            text = "• Local-only Wi-Fi / USB hosting — zero third-party cloud relays.\n" +
-                                "• 6-digit random Pairing PIN with automatic 60s lockout after 5 wrong guesses.\n" +
-                                "• High-entropy Bearer session tokens kept in laptop memory only.\n" +
-                                "• Sandboxed File Vault with strict path checks and per-module kill switches.",
+                            text = "• Local Wi-Fi & USB hosting only — no cloud servers.\n" +
+                                "• 6-digit random Pairing PIN with 60s lockout after 5 wrong tries.\n" +
+                                "• Memory-only laptop Bearer tokens that you can revoke anytime.\n" +
+                                "• Sandboxed Share Hub vault with per-feature permission switches.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -263,29 +271,28 @@ fun SettingsScreen(
                 }
             }
 
-            // Connection Guide
             item {
                 Card(
                     shape = MaterialTheme.shapes.large,
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
                 ) {
                     Column(
                         modifier = Modifier.padding(18.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(
-                            text = "HOW TO CONNECT FROM YOUR LAPTOP",
+                            text = "HOW TO CONNECT YOUR LAPTOP",
                             style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.primary
+                            color = CobaltPrimary
                         )
                         Text(
-                            text = "Option 1 — Wi-Fi (Wireless):\n" +
-                                "1. Connect both phone and laptop to the same Wi-Fi or phone hotspot.\n" +
-                                "2. Tap Start Remote Host on the Deck tab.\n" +
+                            text = "Wi-Fi (Wireless):\n" +
+                                "1. Join the same Wi-Fi or phone hotspot on both devices.\n" +
+                                "2. Tap Start Host on the Devices tab.\n" +
                                 "3. Open ${state.serverUrl} in your laptop browser and enter the 6-digit PIN.\n\n" +
-                                "Option 2 — USB Cable (Ultra-Low Latency):\n" +
-                                "1. Plug your phone into your laptop with USB Debugging enabled.\n" +
+                                "USB Cable (Zero-Lag):\n" +
+                                "1. Connect your phone via USB with USB Debugging enabled.\n" +
                                 "2. Run: ${state.adbForwardCommand}\n" +
                                 "3. Open http://127.0.0.1:${state.settings.port} in your laptop browser.",
                             style = MaterialTheme.typography.bodySmall,
@@ -295,7 +302,7 @@ fun SettingsScreen(
                 }
             }
 
-            item { Spacer(modifier = Modifier.height(12.dp)) }
+            item { Spacer(modifier = Modifier.height(14.dp)) }
         }
     }
 }
