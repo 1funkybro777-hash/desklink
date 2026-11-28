@@ -16,9 +16,15 @@ import com.example.model.LogStatus
 import java.io.ByteArrayOutputStream
 import java.util.concurrent.atomic.AtomicBoolean
 
-class ScreenCaptureManager(private val context: Context) {
+class ScreenCaptureManager(
+    private val context: Context,
+    private val onProjectionStopped: () -> Unit = {}
+) {
 
-    private var mediaProjection: MediaProjection? = null
+    @Volatile
+    var activeMediaProjection: MediaProjection? = null
+        private set
+
     private var virtualDisplay: VirtualDisplay? = null
     private var imageReader: ImageReader? = null
     private var captureThread: HandlerThread? = null
@@ -31,6 +37,7 @@ class ScreenCaptureManager(private val context: Context) {
     private val projectionCallback = object : MediaProjection.Callback() {
         override fun onStop() {
             stop()
+            onProjectionStopped()
         }
     }
 
@@ -68,7 +75,7 @@ class ScreenCaptureManager(private val context: Context) {
                 handler
             )
 
-            mediaProjection = projection
+            activeMediaProjection = projection
             imageReader = reader
             virtualDisplay = display
             captureThread = thread
@@ -148,9 +155,9 @@ class ScreenCaptureManager(private val context: Context) {
         runCatching { imageReader?.setOnImageAvailableListener(null, null) }
         runCatching { imageReader?.close() }
         imageReader = null
-        runCatching { mediaProjection?.unregisterCallback(projectionCallback) }
-        runCatching { mediaProjection?.stop() }
-        mediaProjection = null
+        runCatching { activeMediaProjection?.unregisterCallback(projectionCallback) }
+        runCatching { activeMediaProjection?.stop() }
+        activeMediaProjection = null
         runCatching { captureThread?.quitSafely() }
         captureThread = null
         captureHandler = null

@@ -8,6 +8,7 @@ enum class MirrorQuality(val label: String, val scale: Float, val jpegQuality: I
 
 data class RemoteCapabilities(
     val screenMirror: Boolean = true,
+    val audioForwarding: Boolean = true,
     val remoteTouchAndInput: Boolean = true,
     val audioAndMedia: Boolean = true,
     val clipboardSync: Boolean = true,
@@ -131,6 +132,9 @@ data class ServiceReadiness(
     val serverRunning: Boolean = false,
     val serverError: String? = null,
     val screenMirrorActive: Boolean = false,
+    val audioForwardingActive: Boolean = false,
+    val audioForwardingError: String? = null,
+    val mirrorRotationDegrees: Int = 0,
     val accessibilityConnected: Boolean = false,
     val notificationListenerConnected: Boolean = false,
     val torchEnabled: Boolean = false,

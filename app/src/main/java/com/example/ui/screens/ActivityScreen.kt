@@ -12,23 +12,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.DeleteSweep
-import androidx.compose.material.icons.rounded.History
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.Icon
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -37,11 +28,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.model.CommandLogEntry
 import com.example.model.LogStatus
 import com.example.ui.DeckLinkUiState
+import com.example.ui.theme.PureBlack
+import com.example.ui.theme.PureWhite
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -61,13 +55,13 @@ fun ActivityScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
+            .background(PureWhite),
         contentAlignment = Alignment.TopCenter
     ) {
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .widthIn(max = 620.dp),
+                .widthIn(max = 640.dp),
             contentPadding = PaddingValues(horizontal = 18.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
@@ -79,23 +73,31 @@ fun ActivityScreen(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Recent Activity",
+                            text = "Activity Log",
                             style = MaterialTheme.typography.headlineMedium,
-                            color = MaterialTheme.colorScheme.onBackground
+                            color = PureBlack
                         )
                         Text(
-                            text = "Live log of paired laptop actions and connection events.",
+                            text = "Every command received from paired laptops.",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = PureBlack
                         )
                     }
                     if (state.logs.isNotEmpty()) {
-                        TextButton(
+                        Surface(
                             onClick = onClearLogs,
+                            color = PureWhite,
+                            shape = RoundedCornerShape(8.dp),
+                            border = BorderStroke(1.2.dp, PureBlack),
                             modifier = Modifier.testTag("clear_logs_button")
                         ) {
-                            Icon(Icons.Rounded.DeleteSweep, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Text(" Clear")
+                            Text(
+                                text = "Clear",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = PureBlack,
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                            )
                         }
                     }
                 }
@@ -104,43 +106,44 @@ fun ActivityScreen(
             item {
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     item {
-                        FilterChip(
+                        MonoChoiceChip(
+                            label = "All (${state.logs.size})",
                             selected = selectedFilter == null,
+                            testTag = "filter_all",
                             onClick = { selectedFilter = null },
-                            label = { Text("All (${state.logs.size})") },
-                            modifier = Modifier.testTag("filter_all")
+                            modifier = Modifier.padding(horizontal = 2.dp)
                         )
                     }
                     item {
-                        FilterChip(
+                        MonoChoiceChip(
+                            label = "Allowed",
                             selected = selectedFilter == LogStatus.ALLOWED,
-                            onClick = { selectedFilter = LogStatus.ALLOWED },
-                            label = { Text("Allowed") },
-                            modifier = Modifier.testTag("filter_allowed")
+                            testTag = "filter_allowed",
+                            onClick = { selectedFilter = LogStatus.ALLOWED }
                         )
                     }
                     item {
-                        FilterChip(
+                        MonoChoiceChip(
+                            label = "Blocked",
                             selected = selectedFilter == LogStatus.BLOCKED,
-                            onClick = { selectedFilter = LogStatus.BLOCKED },
-                            label = { Text("Blocked") },
-                            modifier = Modifier.testTag("filter_blocked")
+                            testTag = "filter_blocked",
+                            onClick = { selectedFilter = LogStatus.BLOCKED }
                         )
                     }
                     item {
-                        FilterChip(
+                        MonoChoiceChip(
+                            label = "Auth",
                             selected = selectedFilter == LogStatus.AUTH_FAILED,
-                            onClick = { selectedFilter = LogStatus.AUTH_FAILED },
-                            label = { Text("Auth") },
-                            modifier = Modifier.testTag("filter_auth")
+                            testTag = "filter_auth",
+                            onClick = { selectedFilter = LogStatus.AUTH_FAILED }
                         )
                     }
                     item {
-                        FilterChip(
+                        MonoChoiceChip(
+                            label = "System",
                             selected = selectedFilter == LogStatus.SYSTEM,
-                            onClick = { selectedFilter = LogStatus.SYSTEM },
-                            label = { Text("System") },
-                            modifier = Modifier.testTag("filter_system")
+                            testTag = "filter_system",
+                            onClick = { selectedFilter = LogStatus.SYSTEM }
                         )
                     }
                 }
@@ -148,35 +151,12 @@ fun ActivityScreen(
 
             if (filteredLogs.isEmpty()) {
                 item {
-                    Card(
-                        shape = MaterialTheme.shapes.large,
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(28.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.History,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(34.dp)
-                            )
-                            Text(
-                                text = "No activity yet",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                text = "Start the Remote Host and connect your laptop to see live actions here.",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
+                    MonoSectionCard(title = "AUDIT EVENTS") {
+                        Text(
+                            text = "No activity recorded yet. Start the Remote Host and connect your laptop.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = PureBlack
+                        )
                     }
                 }
             } else {
@@ -192,17 +172,11 @@ fun ActivityScreen(
 
 @Composable
 private fun AuditLogRow(entry: CommandLogEntry, formattedTime: String) {
-    val badgeColor = when (entry.status) {
-        LogStatus.ALLOWED -> MaterialTheme.colorScheme.secondary
-        LogStatus.BLOCKED -> MaterialTheme.colorScheme.tertiary
-        LogStatus.AUTH_FAILED -> MaterialTheme.colorScheme.error
-        LogStatus.SYSTEM -> MaterialTheme.colorScheme.primary
-    }
-
-    Card(
-        shape = MaterialTheme.shapes.medium,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+    Surface(
+        color = PureWhite,
+        shape = RoundedCornerShape(12.dp),
+        border = BorderStroke(1.dp, PureBlack),
+        modifier = Modifier.fillMaxWidth()
     ) {
         Row(
             modifier = Modifier
@@ -215,30 +189,33 @@ private fun AuditLogRow(entry: CommandLogEntry, formattedTime: String) {
                 Text(
                     text = entry.action,
                     style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.onSurface
+                    fontWeight = FontWeight.Bold,
+                    color = PureBlack
                 )
                 Text(
                     text = entry.detail,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = PureBlack,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
                     text = "${entry.clientIp} • $formattedTime",
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = PureBlack
                 )
             }
             Surface(
-                color = badgeColor.copy(alpha = 0.12f),
-                shape = CircleShape
+                color = PureWhite,
+                shape = RoundedCornerShape(6.dp),
+                border = BorderStroke(1.dp, PureBlack)
             ) {
                 Text(
                     text = entry.status.name.replace("_", " "),
                     style = MaterialTheme.typography.labelSmall,
-                    color = badgeColor,
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                    fontWeight = FontWeight.Bold,
+                    color = PureBlack,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                 )
             }
         }

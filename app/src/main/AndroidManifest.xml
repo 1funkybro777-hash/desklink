@@ -14,8 +14,9 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
 
-    <!-- Runtime permission for Android 13+ foreground service notification -->
+    <!-- Runtime permission for Android 13+ foreground service notification & Android 10+ internal audio capture -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
     <!-- Play-policy compliant queries block to discover launchable apps without QUERY_ALL_PACKAGES -->
     <queries>

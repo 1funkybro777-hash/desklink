@@ -1,6 +1,8 @@
 package com.example.server
 
 import android.content.Context
+import android.os.Build
+import com.example.control.AudioCaptureManager
 import com.example.control.DeviceTelemetryProvider
 import com.example.control.SystemControlManager
 import com.example.data.DeckLinkStateStore
@@ -25,6 +27,7 @@ import java.net.InetSocketAddress
 import java.net.ServerSocket
 import java.net.Socket
 import java.net.URLDecoder
+import java.util.concurrent.TimeUnit
 
 class DeckLinkHttpServer(
     private val context: Context,
@@ -192,7 +195,6 @@ class DeckLinkHttpServer(
             return
         }
 
-        // Public endpoints: Web Console UI, ping, and PIN pairing
         when {
             req.method == "GET" && (req.path == "/" || req.path == "/index.html") -> {
                 sendBytes(
@@ -202,7 +204,7 @@ class DeckLinkHttpServer(
                     bytes = webConsoleBytes,
                     extraHeaders = mapOf(
                         "Content-Security-Policy" to
-                            "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; frame-ancestors 'none';"
+                            "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self'; frame-ancestors 'none';"
                     )
                 )
                 return
@@ -254,7 +256,7 @@ class DeckLinkHttpServer(
             }
         }
 
-        // Stream endpoints authenticated via active session streamTicket or Bearer token
+        // Live Video Mirror Stream & Single Snapshot
         if (req.method == "GET" && (req.path == "/api/stream/mjpeg" || req.path == "/api/screen/frame")) {
             val bearer = extractBearer(req.headers)
             val ticket = req.query["ticket"]
@@ -280,12 +282,35 @@ class DeckLinkHttpServer(
                 return
             }
 
-            // Live MJPEG stream
             streamMjpeg(socket, out, session.streamTicket)
             return
         }
 
-        // Vault file download supports either Authorization: Bearer or active streamTicket query for browser download links
+        // Live Internal Phone Audio Stream (16-bit PCM @ 24kHz mono over HTTP chunked stream)
+        if (req.method == "GET" && req.path == "/api/stream/audio") {
+            val bearer = extractBearer(req.headers)
+            val ticket = req.query["ticket"]
+            val session = DeckLinkStateStore.validateBearerToken(bearer)
+                ?: DeckLinkStateStore.validateStreamTicket(ticket)
+            if (session == null) {
+                sendJson(out, 401, JSONObject().put("error", "Unauthorized audio stream request"))
+                return
+            }
+            if (!DeckLinkStateStore.settings.value.capabilities.audioForwarding) {
+                DeckLinkStateStore.logCommand(clientIp, "Phone Audio Stream", "Blocked by phone toggle", LogStatus.BLOCKED)
+                sendJson(out, 403, JSONObject().put("error", "Phone-to-laptop audio forwarding is disabled on phone"))
+                return
+            }
+            if (!DeckLinkStateStore.readiness.value.audioForwardingActive) {
+                sendJson(out, 503, JSONObject().put("error", "Phone audio capture is not active on phone yet. Start Screen Mirror & Audio on your phone."))
+                return
+            }
+            DeckLinkStateStore.logCommand(clientIp, "Phone Audio Listen", "Laptop listening to phone sound", LogStatus.ALLOWED)
+            streamAudioPcm(socket, out, session.streamTicket)
+            return
+        }
+
+        // Vault File Download
         if (req.method == "GET" && req.path == "/api/files/download") {
             val bearer = extractBearer(req.headers)
             val ticket = req.query["ticket"]
@@ -353,6 +378,8 @@ class DeckLinkHttpServer(
                     .put("screenWidth", telemetry.screenWidthPx)
                     .put("screenHeight", telemetry.screenHeightPx)
                     .put("uptimeMinutes", telemetry.uptimeMinutes)
+                    .put("audioSampleRate", AudioCaptureManager.SAMPLE_RATE_HZ)
+                    .put("audioChannels", AudioCaptureManager.CHANNELS)
                     .put(
                         "volumes",
                         JSONObject()
@@ -370,6 +397,10 @@ class DeckLinkHttpServer(
                         "readiness",
                         JSONObject()
                             .put("screenMirrorActive", readiness.screenMirrorActive)
+                            .put("audioForwardingActive", readiness.audioForwardingActive)
+                            .put("audioForwardingSupported", Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
+                            .put("audioForwardingError", readiness.audioForwardingError ?: "")
+                            .put("mirrorRotationDegrees", readiness.mirrorRotationDegrees)
                             .put("accessibilityConnected", DeckLinkAccessibilityService.isConnected())
                             .put("notificationBridgeConnected", DeckLinkNotificationListener.isConnected())
                             .put("torchEnabled", readiness.torchEnabled)
@@ -379,6 +410,7 @@ class DeckLinkHttpServer(
                         "capabilities",
                         JSONObject()
                             .put("screenMirror", caps.screenMirror)
+                            .put("audioForwarding", caps.audioForwarding)
                             .put("remoteTouchAndInput", caps.remoteTouchAndInput)
                             .put("audioAndMedia", caps.audioAndMedia)
                             .put("clipboardSync", caps.clipboardSync)
@@ -388,6 +420,16 @@ class DeckLinkHttpServer(
                             .put("notificationBridge", caps.notificationBridge)
                     )
                 sendJson(out, 200, json)
+            }
+
+            // Mirror Rotation Sync (0 / 90 / 180 / 270)
+            req.method == "POST" && req.path == "/api/screen/rotate" -> {
+                if (!requireCapability(caps.screenMirror, clientIp, "Rotate Mirror", out)) return
+                val deg = parseJson(req.body).optInt("degrees", 0)
+                DeckLinkStateStore.setMirrorRotationDegrees(deg)
+                val finalDeg = DeckLinkStateStore.readiness.value.mirrorRotationDegrees
+                DeckLinkStateStore.logCommand(clientIp, "Mirror Rotation", "${finalDeg}°", LogStatus.ALLOWED)
+                sendJson(out, 200, JSONObject().put("ok", true).put("degrees", finalDeg))
             }
 
             // Remote Touch, Gestures, System Keys & Text Input
@@ -732,10 +774,53 @@ class DeckLinkHttpServer(
         }
     }
 
+    private fun streamAudioPcm(socket: Socket, out: OutputStream, ticket: String) {
+        socket.soTimeout = 0
+        val header = buildString {
+            append("HTTP/1.1 200 OK\r\n")
+            append("Content-Type: application/octet-stream\r\n")
+            append("Transfer-Encoding: chunked\r\n")
+            append("Cache-Control: no-store, no-cache\r\n")
+            append("X-Content-Type-Options: nosniff\r\n")
+            append("X-Audio-Sample-Rate: ${AudioCaptureManager.SAMPLE_RATE_HZ}\r\n")
+            append("X-Audio-Channels: ${AudioCaptureManager.CHANNELS}\r\n")
+            append("Connection: close\r\n\r\n")
+        }
+        out.write(header.toByteArray(Charsets.US_ASCII))
+        out.flush()
+
+        val queue = DeckLinkStateStore.registerAudioSubscriber()
+        try {
+            while (!socket.isClosed) {
+                if (DeckLinkStateStore.validateStreamTicket(ticket) == null) break
+                if (!DeckLinkStateStore.settings.value.capabilities.audioForwarding) break
+                if (!DeckLinkStateStore.readiness.value.audioForwardingActive) break
+
+                val chunk = queue.poll(300, TimeUnit.MILLISECONDS) ?: continue
+                if (chunk.isEmpty()) continue
+                val ok = runCatching {
+                    val sizeHex = Integer.toHexString(chunk.size)
+                    out.write("$sizeHex\r\n".toByteArray(Charsets.US_ASCII))
+                    out.write(chunk)
+                    out.write("\r\n".toByteArray(Charsets.US_ASCII))
+                    out.flush()
+                    true
+                }.getOrDefault(false)
+                if (!ok) break
+            }
+            runCatching {
+                out.write("0\r\n\r\n".toByteArray(Charsets.US_ASCII))
+                out.flush()
+            }
+        } finally {
+            DeckLinkStateStore.unregisterAudioSubscriber(queue)
+        }
+    }
+
     private fun requireCapability(enabled: Boolean, clientIp: String, action: String, out: OutputStream): Boolean {
         if (!enabled) {
             DeckLinkStateStore.logCommand(clientIp, action, "Blocked by phone capability switch", LogStatus.BLOCKED)
-            sendJson(out, 403, JSONObject().put("error", "$action is disabled in DeckLink Controls on your phone"))
+            sendJson(out, 403, JSONObject().put("error", "$action is disabled in DeckLink on your phone"))
             return false
         }
         return true

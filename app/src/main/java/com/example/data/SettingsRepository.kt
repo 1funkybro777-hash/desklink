@@ -24,6 +24,7 @@ class SettingsRepository(private val context: Context) {
         val MIRROR_FPS = intPreferencesKey("mirror_fps")
         val KEEP_AWAKE = booleanPreferencesKey("keep_awake")
         val CAP_MIRROR = booleanPreferencesKey("cap_mirror")
+        val CAP_AUDIO_FORWARDING = booleanPreferencesKey("cap_audio_forwarding")
         val CAP_TOUCH = booleanPreferencesKey("cap_touch")
         val CAP_AUDIO = booleanPreferencesKey("cap_audio")
         val CAP_CLIPBOARD = booleanPreferencesKey("cap_clipboard")
@@ -43,6 +44,7 @@ class SettingsRepository(private val context: Context) {
             keepAwakeWhileHosting = prefs[Keys.KEEP_AWAKE] ?: true,
             capabilities = RemoteCapabilities(
                 screenMirror = prefs[Keys.CAP_MIRROR] ?: true,
+                audioForwarding = prefs[Keys.CAP_AUDIO_FORWARDING] ?: true,
                 remoteTouchAndInput = prefs[Keys.CAP_TOUCH] ?: true,
                 audioAndMedia = prefs[Keys.CAP_AUDIO] ?: true,
                 clipboardSync = prefs[Keys.CAP_CLIPBOARD] ?: true,
@@ -61,6 +63,7 @@ class SettingsRepository(private val context: Context) {
             prefs[Keys.MIRROR_FPS] = settings.mirrorFps.coerceIn(3, 20)
             prefs[Keys.KEEP_AWAKE] = settings.keepAwakeWhileHosting
             prefs[Keys.CAP_MIRROR] = settings.capabilities.screenMirror
+            prefs[Keys.CAP_AUDIO_FORWARDING] = settings.capabilities.audioForwarding
             prefs[Keys.CAP_TOUCH] = settings.capabilities.remoteTouchAndInput
             prefs[Keys.CAP_AUDIO] = settings.capabilities.audioAndMedia
             prefs[Keys.CAP_CLIPBOARD] = settings.capabilities.clipboardSync

@@ -11,6 +11,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
@@ -18,35 +19,41 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Devices
-import androidx.compose.material.icons.outlined.FolderShared
+import androidx.compose.material.icons.outlined.Dashboard
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material.icons.rounded.Devices
-import androidx.compose.material.icons.rounded.FolderShared
+import androidx.compose.material.icons.outlined.Tune
+import androidx.compose.material.icons.rounded.Dashboard
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.Tune
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationRailItem
+import androidx.compose.material3.NavigationRailItemDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
@@ -58,22 +65,22 @@ import com.example.ui.screens.ActivityScreen
 import com.example.ui.screens.ControlsScreen
 import com.example.ui.screens.DeckScreen
 import com.example.ui.screens.SettingsScreen
-import com.example.ui.theme.CobaltPrimary
-import com.example.ui.theme.PeriwinkleSoft
+import com.example.ui.theme.PureBlack
+import com.example.ui.theme.PureWhite
 
 private data class NavDestination(
     val tab: DeckTab,
-    val labelRes: Int,
+    val label: String,
     val selectedIcon: ImageVector,
     val unselectedIcon: ImageVector,
     val testTag: String
 )
 
 private val Destinations = listOf(
-    NavDestination(DeckTab.DECK, R.string.nav_deck, Icons.Rounded.Devices, Icons.Outlined.Devices, "nav_deck"),
-    NavDestination(DeckTab.CONTROLS, R.string.nav_controls, Icons.Rounded.FolderShared, Icons.Outlined.FolderShared, "nav_controls"),
-    NavDestination(DeckTab.ACTIVITY, R.string.nav_activity, Icons.Rounded.History, Icons.Outlined.History, "nav_activity"),
-    NavDestination(DeckTab.SETTINGS, R.string.nav_settings, Icons.Rounded.Settings, Icons.Outlined.Settings, "nav_settings")
+    NavDestination(DeckTab.DECK, "Home", Icons.Rounded.Dashboard, Icons.Outlined.Dashboard, "nav_deck"),
+    NavDestination(DeckTab.CONTROLS, "Features", Icons.Rounded.Tune, Icons.Outlined.Tune, "nav_controls"),
+    NavDestination(DeckTab.ACTIVITY, "Activity", Icons.Rounded.History, Icons.Outlined.History, "nav_activity"),
+    NavDestination(DeckTab.SETTINGS, "Settings", Icons.Rounded.Settings, Icons.Outlined.Settings, "nav_settings")
 )
 
 @Composable
@@ -83,6 +90,7 @@ fun DeckLinkApp(viewModel: DeckLinkViewModel) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val selectedTab by viewModel.selectedTab.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    var pendingAutoAudio by remember { mutableStateOf(false) }
 
     BackHandler(enabled = selectedTab != DeckTab.DECK) {
         viewModel.selectTab(DeckTab.DECK)
@@ -131,13 +139,52 @@ fun DeckLinkApp(viewModel: DeckLinkViewModel) {
     ) { result ->
         val data = result.data
         if (result.resultCode == Activity.RESULT_OK && data != null) {
-            viewModel.onMediaProjectionGranted(result.resultCode, data)
+            val hasRecordAudio = ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.RECORD_AUDIO
+            ) == PackageManager.PERMISSION_GRANTED
+            viewModel.onMediaProjectionGranted(
+                resultCode = result.resultCode,
+                data = data,
+                autoStartAudio = pendingAutoAudio || hasRecordAudio
+            )
+        }
+        pendingAutoAudio = false
+    }
+
+    val launchMediaProjectionConsent: (Boolean) -> Unit = { startAudioToo ->
+        pendingAutoAudio = startAudioToo
+        val mgr = context.getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
+        mediaProjectionLauncher.launch(mgr.createScreenCaptureIntent())
+    }
+
+    // Runtime RECORD_AUDIO permission required by Android 10+ AudioPlaybackCaptureConfiguration
+    val recordAudioPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            if (state.readiness.screenMirrorActive) {
+                viewModel.startAudioForwarding()
+            } else {
+                launchMediaProjectionConsent(true)
+            }
         }
     }
 
-    val requestScreenMirror: () -> Unit = {
-        val mgr = context.getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
-        mediaProjectionLauncher.launch(mgr.createScreenCaptureIntent())
+    val requestAudioForwarding: () -> Unit = {
+        val granted = ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.RECORD_AUDIO
+        ) == PackageManager.PERMISSION_GRANTED
+        if (granted) {
+            if (state.readiness.screenMirrorActive) {
+                viewModel.startAudioForwarding()
+            } else {
+                launchMediaProjectionConsent(true)
+            }
+        } else {
+            recordAudioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+        }
     }
 
     val photoPickerLauncher = rememberLauncherForActivityResult(
@@ -161,33 +208,60 @@ fun DeckLinkApp(viewModel: DeckLinkViewModel) {
 
         Scaffold(
             contentWindowInsets = WindowInsets.safeDrawing,
-            containerColor = MaterialTheme.colorScheme.background,
-            snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
+            containerColor = PureWhite,
+            snackbarHost = {
+                SnackbarHost(hostState = snackbarHostState) { data ->
+                    Surface(
+                        color = PureWhite,
+                        border = BorderStroke(1.5.dp, PureBlack),
+                        modifier = Modifier.padding(12.dp)
+                    ) {
+                        Snackbar(
+                            snackbarData = data,
+                            containerColor = PureWhite,
+                            contentColor = PureBlack,
+                            actionColor = PureBlack
+                        )
+                    }
+                }
+            },
             bottomBar = {
                 if (!useNavigationRail) {
-                    NavigationBar(
-                        containerColor = MaterialTheme.colorScheme.surface,
-                        tonalElevation = 0.dp
-                    ) {
-                        Destinations.forEach { dest ->
-                            val isSelected = selectedTab == dest.tab
-                            NavigationBarItem(
-                                selected = isSelected,
-                                onClick = { viewModel.selectTab(dest.tab) },
-                                icon = {
-                                    Icon(
-                                        imageVector = if (isSelected) dest.selectedIcon else dest.unselectedIcon,
-                                        contentDescription = stringResource(dest.labelRes)
-                                    )
-                                },
-                                label = { Text(stringResource(dest.labelRes)) },
-                                colors = NavigationBarItemDefaults.colors(
-                                    selectedIconColor = CobaltPrimary,
-                                    selectedTextColor = CobaltPrimary,
-                                    indicatorColor = PeriwinkleSoft
-                                ),
-                                modifier = Modifier.testTag(dest.testTag)
-                            )
+                    androidx.compose.foundation.layout.Column {
+                        HorizontalDivider(color = PureBlack, thickness = 1.dp)
+                        NavigationBar(
+                            containerColor = PureWhite,
+                            tonalElevation = 0.dp
+                        ) {
+                            Destinations.forEach { dest ->
+                                val isSelected = selectedTab == dest.tab
+                                NavigationBarItem(
+                                    selected = isSelected,
+                                    onClick = { viewModel.selectTab(dest.tab) },
+                                    icon = {
+                                        Icon(
+                                            imageVector = if (isSelected) dest.selectedIcon else dest.unselectedIcon,
+                                            contentDescription = dest.label,
+                                            tint = PureBlack
+                                        )
+                                    },
+                                    label = {
+                                        Text(
+                                            text = dest.label,
+                                            color = PureBlack,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                        )
+                                    },
+                                    colors = NavigationBarItemDefaults.colors(
+                                        selectedIconColor = PureBlack,
+                                        selectedTextColor = PureBlack,
+                                        unselectedIconColor = PureBlack,
+                                        unselectedTextColor = PureBlack,
+                                        indicatorColor = PureWhite
+                                    ),
+                                    modifier = Modifier.testTag(dest.testTag)
+                                )
+                            }
                         }
                     }
                 }
@@ -199,9 +273,7 @@ fun DeckLinkApp(viewModel: DeckLinkViewModel) {
                     .padding(innerPadding)
             ) {
                 if (useNavigationRail) {
-                    NavigationRail(
-                        containerColor = MaterialTheme.colorScheme.surface
-                    ) {
+                    NavigationRail(containerColor = PureWhite) {
                         Destinations.forEach { dest ->
                             val isSelected = selectedTab == dest.tab
                             NavigationRailItem(
@@ -210,10 +282,24 @@ fun DeckLinkApp(viewModel: DeckLinkViewModel) {
                                 icon = {
                                     Icon(
                                         imageVector = if (isSelected) dest.selectedIcon else dest.unselectedIcon,
-                                        contentDescription = stringResource(dest.labelRes)
+                                        contentDescription = dest.label,
+                                        tint = PureBlack
                                     )
                                 },
-                                label = { Text(stringResource(dest.labelRes)) },
+                                label = {
+                                    Text(
+                                        text = dest.label,
+                                        color = PureBlack,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                    )
+                                },
+                                colors = NavigationRailItemDefaults.colors(
+                                    selectedIconColor = PureBlack,
+                                    selectedTextColor = PureBlack,
+                                    unselectedIconColor = PureBlack,
+                                    unselectedTextColor = PureBlack,
+                                    indicatorColor = PureWhite
+                                ),
                                 modifier = Modifier.testTag(dest.testTag)
                             )
                         }
@@ -226,21 +312,15 @@ fun DeckLinkApp(viewModel: DeckLinkViewModel) {
                         state = state,
                         onStartHost = startHostWithPermissionCheck,
                         onStopHost = viewModel::stopServer,
-                        onRequestScreenMirror = requestScreenMirror,
+                        onRequestScreenMirror = { launchMediaProjectionConsent(false) },
                         onStopScreenMirror = viewModel::stopScreenMirror,
-                        onOpenAccessibilitySettings = {
-                            runCatching { context.startActivity(viewModel.buildAccessibilitySettingsIntent()) }
-                        },
-                        onOpenNotificationSettings = {
-                            runCatching { context.startActivity(viewModel.buildNotificationAccessSettingsIntent()) }
-                        },
+                        onStartAudioForwarding = requestAudioForwarding,
+                        onStopAudioForwarding = viewModel::stopAudioForwarding,
+                        onSetMirrorRotation = viewModel::setMirrorRotation,
                         onOpenShareHub = { viewModel.selectTab(DeckTab.CONTROLS) },
-                        onToggleTorch = viewModel::toggleTorchLocally,
-                        onRunDeskMode = { viewModel.runMacroLocally("desk_mode") },
                         onLaunchApp = viewModel::launchAppLocally,
                         onRotatePin = viewModel::rotatePairingPin,
                         onCopyUrl = { viewModel.copyToClipboard("Console URL", state.serverUrl) },
-                        onCopyAdbCommand = { viewModel.copyToClipboard("USB Forward Command", state.adbForwardCommand) },
                         onCopyPin = { viewModel.copyToClipboard("Pairing PIN", state.pairingPin) },
                         onRevokeSession = viewModel::revokeSession,
                         modifier = contentModifier
@@ -249,6 +329,13 @@ fun DeckLinkApp(viewModel: DeckLinkViewModel) {
                     DeckTab.CONTROLS -> ControlsScreen(
                         state = state,
                         onUpdateCapability = viewModel::updateCapability,
+                        onOpenAccessibilitySettings = {
+                            runCatching { context.startActivity(viewModel.buildAccessibilitySettingsIntent()) }
+                        },
+                        onOpenNotificationSettings = {
+                            runCatching { context.startActivity(viewModel.buildNotificationAccessSettingsIntent()) }
+                        },
+                        onToggleTorch = viewModel::toggleTorchLocally,
                         onRunMacro = viewModel::runMacroLocally,
                         onStopFinderRing = viewModel::stopFinderRingLocally,
                         onPushClipboard = viewModel::pushClipboardText,
@@ -269,6 +356,7 @@ fun DeckLinkApp(viewModel: DeckLinkViewModel) {
                             }
                         },
                         onDeleteVaultFile = viewModel::deleteVaultFile,
+                        onCopyUsbCommand = { viewModel.copyToClipboard("USB Forward Command", state.adbForwardCommand) },
                         modifier = contentModifier
                     )
 

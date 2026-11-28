@@ -17,6 +17,8 @@ import java.security.MessageDigest
 import java.security.SecureRandom
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.LinkedBlockingQueue
 
 /**
  * Process-wide reactive coordinator shared between DeckLinkHostService, DeckLinkHttpServer,
@@ -52,6 +54,30 @@ object DeckLinkStateStore {
 
     @Volatile
     var latestFrameTimestampMs: Long = 0L
+
+    // Real-time PCM audio fan-out queues for connected laptop audio stream listeners
+    private val audioSubscribers = CopyOnWriteArrayList<LinkedBlockingQueue<ByteArray>>()
+
+    fun registerAudioSubscriber(): LinkedBlockingQueue<ByteArray> {
+        val queue = LinkedBlockingQueue<ByteArray>(32)
+        audioSubscribers.add(queue)
+        return queue
+    }
+
+    fun unregisterAudioSubscriber(queue: LinkedBlockingQueue<ByteArray>) {
+        audioSubscribers.remove(queue)
+        queue.clear()
+    }
+
+    fun broadcastAudioPcm(chunk: ByteArray) {
+        if (audioSubscribers.isEmpty()) return
+        for (queue in audioSubscribers) {
+            if (!queue.offer(chunk)) {
+                queue.poll()
+                queue.offer(chunk)
+            }
+        }
+    }
 
     // Per-IP failed PIN tracking for brute-force lockout protection
     private data class FailureRecord(val attempts: Int, val lockedUntilMs: Long)
@@ -106,6 +132,15 @@ object DeckLinkStateStore {
 
     fun updateReadiness(transform: (ServiceReadiness) -> ServiceReadiness) {
         _readiness.update(transform)
+    }
+
+    fun setMirrorRotationDegrees(degrees: Int) {
+        val normalized = ((degrees % 360) + 360) % 360
+        val snapped = when (normalized) {
+            90, 180, 270 -> normalized
+            else -> 0
+        }
+        _readiness.update { it.copy(mirrorRotationDegrees = snapped) }
     }
 
     fun updateNotifications(list: List<BridgedNotification>) {
@@ -206,11 +241,6 @@ object DeckLinkStateStore {
         if (removed != null) {
             logCommand(removed.clientIp, "Session Revoked", "${removed.clientLabel} disconnected", LogStatus.SYSTEM)
         }
-    }
-
-    fun revokeByToken(token: String) {
-        val found = validateBearerToken(token) ?: return
-        revokeSession(found.sessionId)
     }
 
     fun revokeAllSessions() {

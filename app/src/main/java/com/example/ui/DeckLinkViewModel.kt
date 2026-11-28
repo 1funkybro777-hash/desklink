@@ -190,7 +190,7 @@ class DeckLinkViewModel(application: Application) : AndroidViewModel(application
         val port = DeckLinkStateStore.settings.value.port
         val intent = DeckLinkHostService.startServerIntent(appContext, port)
         ContextCompat.startForegroundService(appContext, intent)
-        emitToast("Starting DeckLink Host on port $port")
+        emitToast("Remote Host started on port $port")
     }
 
     fun stopServer() {
@@ -199,26 +199,43 @@ class DeckLinkViewModel(application: Application) : AndroidViewModel(application
         emitToast("Remote Host stopped")
     }
 
-    fun onMediaProjectionGranted(resultCode: Int, data: Intent) {
-        val intent = DeckLinkHostService.startMirrorIntent(appContext, resultCode, data)
+    fun onMediaProjectionGranted(resultCode: Int, data: Intent, autoStartAudio: Boolean) {
+        val intent = DeckLinkHostService.startMirrorIntent(appContext, resultCode, data, autoStartAudio)
         ContextCompat.startForegroundService(appContext, intent)
-        emitToast("Live screen mirror active")
+        emitToast(if (autoStartAudio) "Screen Mirror & Phone Audio started" else "Screen Mirror started")
     }
 
     fun stopScreenMirror() {
         val intent = DeckLinkHostService.stopMirrorIntent(appContext)
         appContext.startService(intent)
-        emitToast("Screen mirror stopped")
+        emitToast("Screen Mirror stopped")
+    }
+
+    fun startAudioForwarding() {
+        val intent = DeckLinkHostService.startAudioIntent(appContext)
+        appContext.startService(intent)
+        emitToast("Starting phone audio forwarding to laptop")
+    }
+
+    fun stopAudioForwarding() {
+        val intent = DeckLinkHostService.stopAudioIntent(appContext)
+        appContext.startService(intent)
+        emitToast("Phone audio forwarding stopped")
+    }
+
+    fun setMirrorRotation(degrees: Int) {
+        DeckLinkStateStore.setMirrorRotationDegrees(degrees)
+        emitToast("Mirror rotation set to ${DeckLinkStateStore.readiness.value.mirrorRotationDegrees}°")
     }
 
     fun rotatePairingPin() {
         DeckLinkStateStore.rotatePairingPin()
-        emitToast("Generated new 6-digit pairing PIN")
+        emitToast("New 6-digit pairing PIN created")
     }
 
     fun revokeSession(sessionId: String) {
         DeckLinkStateStore.revokeSession(sessionId)
-        emitToast("Laptop session disconnected")
+        emitToast("Laptop disconnected")
     }
 
     fun revokeAllSessions() {
@@ -241,8 +258,8 @@ class DeckLinkViewModel(application: Application) : AndroidViewModel(application
     fun pushClipboardText(text: String) {
         val clean = text.trim()
         if (clean.isEmpty()) return
-        localControl.writeClipboardText(clean, source = "Share Hub")
-        emitToast("Saved to Share Hub clipboard")
+        localControl.writeClipboardText(clean, source = "Phone")
+        emitToast("Saved to shared clipboard")
     }
 
     fun updateCapability(transform: (RemoteCapabilities) -> RemoteCapabilities) {
@@ -315,7 +332,7 @@ class DeckLinkViewModel(application: Application) : AndroidViewModel(application
 
     fun stopFinderRingLocally() {
         localControl.stopFinderRing()
-        emitToast("Finder alert silenced")
+        emitToast("Finder ring stopped")
     }
 
     fun importVaultFile(uri: Uri) {
@@ -325,7 +342,7 @@ class DeckLinkViewModel(application: Application) : AndroidViewModel(application
                 if (result.isSuccess) {
                     val saved = result.getOrThrow()
                     DeckLinkStateStore.logCommand("local", "Vault File Added", saved.name, LogStatus.SYSTEM)
-                    emitToast("Added ${saved.name} to Share Hub")
+                    emitToast("Added ${saved.name}")
                     refreshVaultFiles()
                 } else {
                     emitToast(result.exceptionOrNull()?.message ?: "Could not import file")

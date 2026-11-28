@@ -15,6 +15,7 @@ import android.os.PowerManager
 import androidx.core.app.NotificationCompat
 import com.example.MainActivity
 import com.example.R
+import com.example.control.AudioCaptureManager
 import com.example.control.DeviceTelemetryProvider
 import com.example.control.ScreenCaptureManager
 import com.example.control.SystemControlManager
@@ -30,9 +31,12 @@ class DeckLinkHostService : Service() {
         const val ACTION_STOP_SERVER = "com.example.decklink.STOP_SERVER"
         const val ACTION_START_MIRROR = "com.example.decklink.START_MIRROR"
         const val ACTION_STOP_MIRROR = "com.example.decklink.STOP_MIRROR"
+        const val ACTION_START_AUDIO = "com.example.decklink.START_AUDIO"
+        const val ACTION_STOP_AUDIO = "com.example.decklink.STOP_AUDIO"
         const val EXTRA_PORT = "extra_port"
         const val EXTRA_RESULT_CODE = "extra_result_code"
         const val EXTRA_RESULT_DATA = "extra_result_data"
+        const val EXTRA_AUTO_AUDIO = "extra_auto_audio"
 
         private const val CHANNEL_ID = "decklink_host_channel"
         private const val NOTIFICATION_ID = 4102
@@ -50,11 +54,12 @@ class DeckLinkHostService : Service() {
             }
         }
 
-        fun startMirrorIntent(context: Context, resultCode: Int, data: Intent): Intent {
+        fun startMirrorIntent(context: Context, resultCode: Int, data: Intent, startAudioToo: Boolean = true): Intent {
             return Intent(context, DeckLinkHostService::class.java).apply {
                 action = ACTION_START_MIRROR
                 putExtra(EXTRA_RESULT_CODE, resultCode)
                 putExtra(EXTRA_RESULT_DATA, data)
+                putExtra(EXTRA_AUTO_AUDIO, startAudioToo)
             }
         }
 
@@ -63,11 +68,24 @@ class DeckLinkHostService : Service() {
                 action = ACTION_STOP_MIRROR
             }
         }
+
+        fun startAudioIntent(context: Context): Intent {
+            return Intent(context, DeckLinkHostService::class.java).apply {
+                action = ACTION_START_AUDIO
+            }
+        }
+
+        fun stopAudioIntent(context: Context): Intent {
+            return Intent(context, DeckLinkHostService::class.java).apply {
+                action = ACTION_STOP_AUDIO
+            }
+        }
     }
 
     private lateinit var telemetryProvider: DeviceTelemetryProvider
     private lateinit var systemControl: SystemControlManager
     private lateinit var vaultFileManager: VaultFileManager
+    private lateinit var audioCaptureManager: AudioCaptureManager
     private lateinit var screenCaptureManager: ScreenCaptureManager
     private lateinit var httpServer: DeckLinkHttpServer
     private var wakeLock: PowerManager.WakeLock? = null
@@ -77,7 +95,10 @@ class DeckLinkHostService : Service() {
         telemetryProvider = DeviceTelemetryProvider(applicationContext)
         systemControl = SystemControlManager(applicationContext)
         vaultFileManager = VaultFileManager(applicationContext)
-        screenCaptureManager = ScreenCaptureManager(applicationContext)
+        audioCaptureManager = AudioCaptureManager(applicationContext)
+        screenCaptureManager = ScreenCaptureManager(applicationContext) {
+            audioCaptureManager.stop()
+        }
         httpServer = DeckLinkHttpServer(
             context = applicationContext,
             telemetryProvider = telemetryProvider,
@@ -95,20 +116,38 @@ class DeckLinkHostService : Service() {
             }
 
             ACTION_STOP_MIRROR -> {
+                audioCaptureManager.stop()
                 screenCaptureManager.stop()
                 promoteForeground(includeMediaProjection = false)
                 return START_STICKY
             }
 
+            ACTION_STOP_AUDIO -> {
+                audioCaptureManager.stop()
+                return START_STICKY
+            }
+
+            ACTION_START_AUDIO -> {
+                val projection = screenCaptureManager.activeMediaProjection
+                if (projection != null) {
+                    audioCaptureManager.start(projection)
+                } else {
+                    DeckLinkStateStore.updateReadiness {
+                        it.copy(audioForwardingError = "Start Screen Mirror first so Android allows internal audio capture.")
+                    }
+                }
+                return START_STICKY
+            }
+
             ACTION_START_MIRROR -> {
                 val resultCode = intent.getIntExtra(EXTRA_RESULT_CODE, Activity.RESULT_CANCELED)
+                val autoAudio = intent.getBooleanExtra(EXTRA_AUTO_AUDIO, true)
                 @Suppress("DEPRECATION")
                 val data = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     intent.getParcelableExtra(EXTRA_RESULT_DATA, Intent::class.java)
                 } else {
                     intent.getParcelableExtra(EXTRA_RESULT_DATA)
                 }
-                // Ensure server is running and foreground service declares mediaProjection BEFORE getMediaProjection
                 ensureServerStarted(DeckLinkStateStore.settings.value.port)
                 promoteForeground(includeMediaProjection = true)
                 if (resultCode == Activity.RESULT_OK && data != null) {
@@ -116,6 +155,11 @@ class DeckLinkHostService : Service() {
                     if (!started) {
                         promoteForeground(includeMediaProjection = false)
                     } else {
+                        if (autoAudio && DeckLinkStateStore.settings.value.capabilities.audioForwarding) {
+                            screenCaptureManager.activeMediaProjection?.let { proj ->
+                                audioCaptureManager.start(proj)
+                            }
+                        }
                         updateNotification(mirrorActive = true)
                     }
                 } else {
@@ -235,7 +279,7 @@ class DeckLinkHostService : Service() {
             val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
             wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "DeckLink:HostWakeLock").apply {
                 setReferenceCounted(false)
-                acquire(60 * 60 * 1000L) // 1 hour bounded lock
+                acquire(60 * 60 * 1000L)
             }
         }
     }
@@ -250,13 +294,19 @@ class DeckLinkHostService : Service() {
     }
 
     private fun stopAllAndFinish() {
+        audioCaptureManager.stop()
         screenCaptureManager.stop()
         httpServer.stop()
         systemControl.stopFinderRing()
         releaseWakeLock()
         DeckLinkStateStore.revokeAllSessions()
         DeckLinkStateStore.updateReadiness {
-            it.copy(serverRunning = false, screenMirrorActive = false, finderRingActive = false)
+            it.copy(
+                serverRunning = false,
+                screenMirrorActive = false,
+                audioForwardingActive = false,
+                finderRingActive = false
+            )
         }
         DeckLinkStateStore.logCommand("local", "Remote Host Stopped", "Server closed", LogStatus.SYSTEM)
         stopForeground(STOP_FOREGROUND_REMOVE)
@@ -264,12 +314,13 @@ class DeckLinkHostService : Service() {
     }
 
     override fun onDestroy() {
+        audioCaptureManager.stop()
         screenCaptureManager.stop()
         httpServer.stop()
         systemControl.release()
         releaseWakeLock()
         DeckLinkStateStore.updateReadiness {
-            it.copy(serverRunning = false, screenMirrorActive = false)
+            it.copy(serverRunning = false, screenMirrorActive = false, audioForwardingActive = false)
         }
         super.onDestroy()
     }

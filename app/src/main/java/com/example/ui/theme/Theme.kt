@@ -7,44 +7,44 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
 
-private val DeckLinkLightColorScheme = lightColorScheme(
-    primary = CobaltPrimary,
-    onPrimary = CrispWhiteCard,
-    primaryContainer = PeriwinkleHero,
-    onPrimaryContainer = DeepNavyInk,
-    secondary = LiveGreen,
-    onSecondary = CrispWhiteCard,
-    secondaryContainer = LiveGreenSoft,
-    onSecondaryContainer = LiveGreen,
-    tertiary = WarmAmber,
-    onTertiary = CrispWhiteCard,
-    tertiaryContainer = WarmAmberSoft,
-    onTertiaryContainer = WarmAmber,
-    error = SoftCrimson,
-    onError = CrispWhiteCard,
-    errorContainer = SoftCrimsonSoft,
-    onErrorContainer = SoftCrimson,
-    background = PorcelainCanvas,
-    onBackground = InkCharcoal,
-    surface = CrispWhiteCard,
-    onSurface = InkCharcoal,
-    surfaceVariant = WarmStoneTile,
-    onSurfaceVariant = InkSlate,
-    surfaceContainerLowest = CrispWhiteCard,
-    surfaceContainerLow = PorcelainCanvas,
-    surfaceContainer = WarmStoneTile,
-    surfaceContainerHigh = WarmStonePressed,
-    surfaceContainerHighest = WarmStonePressed,
-    outline = WarmHairline,
-    outlineVariant = WarmSubtleHairline
+private val DeckLinkMonochromeColorScheme = lightColorScheme(
+    primary = PureBlack,
+    onPrimary = PureWhite,
+    primaryContainer = PureWhite,
+    onPrimaryContainer = PureBlack,
+    secondary = PureBlack,
+    onSecondary = PureWhite,
+    secondaryContainer = PureWhite,
+    onSecondaryContainer = PureBlack,
+    tertiary = PureBlack,
+    onTertiary = PureWhite,
+    tertiaryContainer = PureWhite,
+    onTertiaryContainer = PureBlack,
+    error = PureBlack,
+    onError = PureWhite,
+    errorContainer = PureWhite,
+    onErrorContainer = PureBlack,
+    background = PureWhite,
+    onBackground = PureBlack,
+    surface = PureWhite,
+    onSurface = PureBlack,
+    surfaceVariant = PureWhite,
+    onSurfaceVariant = PureBlack,
+    surfaceContainerLowest = PureWhite,
+    surfaceContainerLow = PureWhite,
+    surfaceContainer = PureWhite,
+    surfaceContainerHigh = PureWhite,
+    surfaceContainerHighest = PureWhite,
+    outline = PureBlack,
+    outlineVariant = PureBlack
 )
 
 val DeckLinkShapes = Shapes(
-    extraSmall = RoundedCornerShape(8.dp),
-    small = RoundedCornerShape(14.dp),
-    medium = RoundedCornerShape(18.dp),
-    large = RoundedCornerShape(24.dp),
-    extraLarge = RoundedCornerShape(28.dp)
+    extraSmall = RoundedCornerShape(6.dp),
+    small = RoundedCornerShape(10.dp),
+    medium = RoundedCornerShape(14.dp),
+    large = RoundedCornerShape(18.dp),
+    extraLarge = RoundedCornerShape(24.dp)
 )
 
 @Composable
@@ -52,7 +52,7 @@ fun DeckLinkTheme(
     content: @Composable () -> Unit
 ) {
     MaterialTheme(
-        colorScheme = DeckLinkLightColorScheme,
+        colorScheme = DeckLinkMonochromeColorScheme,
         typography = DeckLinkTypography,
         shapes = DeckLinkShapes,
         content = content

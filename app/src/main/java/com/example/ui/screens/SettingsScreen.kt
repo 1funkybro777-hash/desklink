@@ -1,6 +1,5 @@
 package com.example.ui.screens
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -11,23 +10,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.GppGood
-import androidx.compose.material.icons.rounded.LinkOff
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Switch
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -37,15 +25,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import com.example.R
 import com.example.model.MirrorQuality
 import com.example.ui.DeckLinkUiState
-import com.example.ui.theme.CobaltPrimary
-import com.example.ui.theme.DeepNavyInk
-import com.example.ui.theme.PeriwinkleHero
+import com.example.ui.theme.PureBlack
+import com.example.ui.theme.PureWhite
 
 @Composable
 fun SettingsScreen(
@@ -62,13 +48,13 @@ fun SettingsScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
+            .background(PureWhite),
         contentAlignment = Alignment.TopCenter
     ) {
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .widthIn(max = 620.dp),
+                .widthIn(max = 640.dp),
             contentPadding = PaddingValues(horizontal = 18.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
@@ -77,228 +63,133 @@ fun SettingsScreen(
                     Text(
                         text = "Settings",
                         style = MaterialTheme.typography.headlineMedium,
-                        color = MaterialTheme.colorScheme.onBackground
+                        color = PureBlack
                     )
                     Text(
-                        text = "Server port, live mirror streaming quality, and laptop security controls.",
+                        text = "Server port, streaming quality, and laptop security controls.",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = PureBlack
                     )
                 }
             }
 
+            // SECTION 1: NETWORK PORT & WAKE LOCK
             item {
-                Card(
-                    shape = MaterialTheme.shapes.large,
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(18.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                MonoSectionCard(title = "1. SERVER PORT & POWER") {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Text(
-                            text = "LOCAL SERVER PORT",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = CobaltPrimary
-                        )
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            OutlinedTextField(
-                                value = portInput,
-                                onValueChange = { if (it.length <= 5) portInput = it.filter { c -> c.isDigit() } },
-                                label = { Text("Port (1024-65535)") },
-                                singleLine = true,
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .testTag("port_input_field")
-                            )
-                            Button(
-                                onClick = { onUpdatePort(portInput) },
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = PeriwinkleHero,
-                                    contentColor = DeepNavyInk
-                                ),
-                                shape = MaterialTheme.shapes.medium,
-                                modifier = Modifier
-                                    .height(54.dp)
-                                    .testTag("apply_port_button")
-                            ) {
-                                Text("Apply")
-                            }
-                        }
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
-                                Text(
-                                    text = "Keep Awake While Hosting",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Text(
-                                    text = "Prevents Wi-Fi sleep while your laptop is connected.",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            Switch(
-                                checked = state.settings.keepAwakeWhileHosting,
-                                onCheckedChange = onUpdateKeepAwake,
-                                modifier = Modifier.testTag("keep_awake_switch")
-                            )
-                        }
-                    }
-                }
-            }
-
-            item {
-                Card(
-                    shape = MaterialTheme.shapes.large,
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(18.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Text(
-                            text = "SCREEN STREAMING QUALITY",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = CobaltPrimary
-                        )
-
-                        Text(
-                            text = "Resolution & Compression",
-                            style = MaterialTheme.typography.titleSmall,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            MirrorQuality.entries.forEach { quality ->
-                                FilterChip(
-                                    selected = state.settings.mirrorQuality == quality,
-                                    onClick = { onUpdateQuality(quality) },
-                                    label = { Text(quality.name.lowercase().replaceFirstChar { it.uppercase() }) },
-                                    modifier = Modifier.testTag("quality_${quality.name.lowercase()}")
-                                )
-                            }
-                        }
-
-                        Text(
-                            text = "Target Frame Rate",
-                            style = MaterialTheme.typography.titleSmall,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            listOf(5, 10, 15).forEach { fps ->
-                                FilterChip(
-                                    selected = state.settings.mirrorFps == fps,
-                                    onClick = { onUpdateFps(fps) },
-                                    label = { Text("$fps FPS") },
-                                    modifier = Modifier.testTag("fps_$fps")
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            item {
-                Card(
-                    shape = MaterialTheme.shapes.large,
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(18.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.GppGood,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.secondary
-                            )
-                            Text(
-                                text = "PRIVACY & SECURITY",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.secondary
-                            )
-                        }
-
-                        Text(
-                            text = "• Local Wi-Fi & USB hosting only — no cloud servers.\n" +
-                                "• 6-digit random Pairing PIN with 60s lockout after 5 wrong tries.\n" +
-                                "• Memory-only laptop Bearer tokens that you can revoke anytime.\n" +
-                                "• Sandboxed Share Hub vault with per-feature permission switches.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-
-                        Button(
-                            onClick = onRevokeAllSessions,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.errorContainer,
-                                contentColor = MaterialTheme.colorScheme.onErrorContainer
+                        OutlinedTextField(
+                            value = portInput,
+                            onValueChange = { if (it.length <= 5) portInput = it.filter { c -> c.isDigit() } },
+                            label = { Text("Port (1024-65535)", color = PureBlack) },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = PureBlack,
+                                unfocusedTextColor = PureBlack,
+                                focusedBorderColor = PureBlack,
+                                unfocusedBorderColor = PureBlack,
+                                cursorColor = PureBlack,
+                                focusedContainerColor = PureWhite,
+                                unfocusedContainerColor = PureWhite
                             ),
-                            shape = MaterialTheme.shapes.medium,
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .height(48.dp)
-                                .testTag("revoke_all_sessions_button")
-                        ) {
-                            Icon(Icons.Rounded.LinkOff, contentDescription = null)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(stringResource(R.string.action_revoke_all))
+                                .weight(1f)
+                                .testTag("port_input_field")
+                        )
+                        MonoActionButton(
+                            text = "Apply",
+                            testTag = "apply_port_button",
+                            onClick = { onUpdatePort(portInput) },
+                            modifier = Modifier.weight(0.45f)
+                        )
+                    }
+
+                    MonoSwitchRow(
+                        title = "Keep Awake While Hosting",
+                        subtitle = "Prevents Wi-Fi sleep while laptop is connected",
+                        checked = state.settings.keepAwakeWhileHosting,
+                        testTag = "keep_awake_switch",
+                        onCheckedChange = onUpdateKeepAwake
+                    )
+                }
+            }
+
+            // SECTION 2: STREAMING QUALITY & FPS
+            item {
+                MonoSectionCard(title = "2. SCREEN MIRROR QUALITY & FPS") {
+                    Text("Resolution", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = PureBlack)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        MirrorQuality.entries.forEach { quality ->
+                            MonoChoiceChip(
+                                label = quality.name.lowercase().replaceFirstChar { it.uppercase() },
+                                selected = state.settings.mirrorQuality == quality,
+                                testTag = "quality_${quality.name.lowercase()}",
+                                onClick = { onUpdateQuality(quality) },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+
+                    Text("Target FPS", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = PureBlack)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        listOf(5, 10, 15).forEach { fps ->
+                            MonoChoiceChip(
+                                label = "$fps FPS",
+                                selected = state.settings.mirrorFps == fps,
+                                testTag = "fps_$fps",
+                                onClick = { onUpdateFps(fps) },
+                                modifier = Modifier.weight(1f)
+                            )
                         }
                     }
                 }
             }
 
+            // SECTION 3: SECURITY & REVOKE
             item {
-                Card(
-                    shape = MaterialTheme.shapes.large,
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(18.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(
-                            text = "HOW TO CONNECT YOUR LAPTOP",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = CobaltPrimary
-                        )
-                        Text(
-                            text = "Wi-Fi (Wireless):\n" +
-                                "1. Join the same Wi-Fi or phone hotspot on both devices.\n" +
-                                "2. Tap Start Host on the Devices tab.\n" +
-                                "3. Open ${state.serverUrl} in your laptop browser and enter the 6-digit PIN.\n\n" +
-                                "USB Cable (Zero-Lag):\n" +
-                                "1. Connect your phone via USB with USB Debugging enabled.\n" +
-                                "2. Run: ${state.adbForwardCommand}\n" +
-                                "3. Open http://127.0.0.1:${state.settings.port} in your laptop browser.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+                MonoSectionCard(title = "3. PRIVACY & SECURITY") {
+                    Text(
+                        text = "• Local Wi-Fi & USB hosting only — no cloud servers.\n" +
+                            "• 6-digit random Pairing PIN with 60s lockout after 5 wrong tries.\n" +
+                            "• Memory-only laptop Bearer tokens revocable anytime.\n" +
+                            "• Sandboxed File Vault with separate permission toggles.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = PureBlack
+                    )
+                    MonoActionButton(
+                        text = "Disconnect All Laptops",
+                        emphasized = true,
+                        testTag = "revoke_all_sessions_button",
+                        onClick = onRevokeAllSessions
+                    )
+                }
+            }
+
+            // SECTION 4: CONNECTION GUIDE
+            item {
+                MonoSectionCard(title = "4. HOW TO CONNECT LAPTOP") {
+                    Text(
+                        text = "Wi-Fi:\n" +
+                            "1. Connect phone and laptop to the same Wi-Fi or hotspot.\n" +
+                            "2. Tap Start Remote Host on Home tab.\n" +
+                            "3. Open ${state.serverUrl} in laptop browser and enter the 6-digit PIN.\n\n" +
+                            "USB Cable:\n" +
+                            "1. Plug phone via USB with USB Debugging enabled.\n" +
+                            "2. Run: ${state.adbForwardCommand}\n" +
+                            "3. Open http://127.0.0.1:${state.settings.port} on laptop.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = PureBlack
+                    )
                 }
             }
 

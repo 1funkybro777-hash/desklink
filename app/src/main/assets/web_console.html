@@ -1,1248 +1,2484 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>DeckLink — Connected Desktop Hub</title>
-<style>
-  :root {
-    --bg: #F6F5F1;
-    --surface: #FFFFFF;
-    --tile: #F0EEE9;
-    --tile-hover: #E7E4DC;
-    --border: #E6E3DB;
-    --blue: #2563EB;
-    --periwinkle: #ACC6FC;
-    --periwinkle-soft: #DCE8FF;
-    --navy: #102A5C;
-    --green: #16A34A;
-    --amber: #D97706;
-    --red: #DC2626;
-    --ink: #181A1F;
-    --muted: #5D626E;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif;
-    background: linear-gradient(180deg, #EEF3FC 0%, var(--bg) 30%, var(--bg) 100%);
-    color: var(--ink);
-    min-height: 100vh;
-    line-height: 1.45;
-  }
-  .mono { font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace; }
-  .hidden { display: none !important; }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DeckLink — Laptop Control Console</title>
+  <style>
+    :root {
+      --bg: #FFFFFF;
+      --fg: #000000;
+    }
 
-  /* Pairing Auth Gate */
-  .auth-wrap {
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 24px;
-  }
-  .auth-card {
-    width: 100%;
-    max-width: 420px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 26px;
-    padding: 34px;
-    box-shadow: 0 22px 60px rgba(16, 42, 92, 0.08);
-  }
-  .brand-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 6px 13px;
-    border-radius: 999px;
-    background: var(--periwinkle-soft);
-    color: var(--navy);
-    font-size: 12px;
-    font-weight: 700;
-    margin-bottom: 16px;
-  }
-  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--blue); }
-  h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 6px; }
-  .sub { color: var(--muted); font-size: 13.5px; margin-bottom: 20px; }
-  label { display: block; font-size: 11px; color: var(--muted); margin-bottom: 6px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
-  input[type="text"], input[type="password"], input[type="url"], textarea {
-    width: 100%;
-    background: var(--bg);
-    color: var(--ink);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 11px 14px;
-    font-size: 14px;
-    outline: none;
-    transition: border-color .15s, background .15s;
-  }
-  input:focus, textarea:focus { border-color: var(--blue); background: var(--surface); }
-  .pin-input {
-    font-size: 28px !important;
-    text-align: center;
-    letter-spacing: 0.35em;
-    font-weight: 700;
-    margin-bottom: 14px;
-  }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      color: #000000;
+      background-color: transparent;
+    }
 
-  .btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 7px;
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 9px 14px;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    background: var(--surface);
-    color: var(--ink);
-    transition: all .15s;
-    text-decoration: none;
-  }
-  .btn:hover { background: var(--tile); border-color: #D2CEC4; }
-  .btn-hero { background: var(--periwinkle); color: var(--navy); border-color: transparent; }
-  .btn-hero:hover { background: #96B7FA; }
-  .btn-primary { background: var(--blue); color: #FFFFFF; border-color: var(--blue); }
-  .btn-primary:hover { background: #1D4ED8; }
-  .btn-pill { border-radius: 999px; padding: 7px 14px; font-size: 12.5px; }
-  .btn-danger { background: #FEF2F2; color: var(--red); border-color: #FECACA; }
-  .btn-danger:hover { background: #FEE2E2; }
-  .btn-full { width: 100%; padding: 13px 16px; font-size: 14px; }
-  .error-box {
-    margin-top: 12px; padding: 10px 12px; border-radius: 12px;
-    background: #FEF2F2; border: 1px solid #FECACA; color: var(--red); font-size: 13px;
-  }
+    html, body {
+      width: 100%;
+      min-height: 100vh;
+      background: #FFFFFF;
+      color: #000000;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, Helvetica, Arial, sans-serif;
+      font-size: 14px;
+      line-height: 1.45;
+      -webkit-font-smoothing: antialiased;
+    }
 
-  /* Top Desktop Shell Header (inspired by Screenshots 1 & 4) */
-  .topbar {
-    position: sticky; top: 0; z-index: 30;
-    background: rgba(246, 245, 241, 0.92);
-    backdrop-filter: blur(12px);
-    border-bottom: 1px solid var(--border);
-    padding: 12px 24px;
-    display: flex; align-items: center; justify-content: space-between;
-    gap: 16px; flex-wrap: wrap;
-  }
-  .nav-pills { display: flex; align-items: center; gap: 6px; }
-  .nav-tab {
-    border: none; background: transparent; color: var(--muted);
-    font-size: 13.5px; font-weight: 600; padding: 8px 14px; border-radius: 999px; cursor: pointer;
-  }
-  .nav-tab.active { background: var(--surface); color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+    /* Strict Monochrome: ONLY #FFFFFF background and #000000 text/borders */
+    input, textarea, select, button {
+      font-family: inherit;
+      font-size: 14px;
+      color: #000000;
+      background: #FFFFFF;
+      border: 1.5px solid #000000;
+      border-radius: 10px;
+      outline: none;
+    }
 
-  /* Search Everywhere Pill & Floating Dropdown (Screenshot 1) */
-  .search-wrap { position: relative; flex: 1; max-width: 440px; min-width: 220px; }
-  .search-input {
-    width: 100%; background: var(--surface) !important; border-radius: 999px !important;
-    padding: 9px 18px !important; box-shadow: 0 2px 8px rgba(16, 42, 92, 0.05);
-  }
-  .search-dropdown {
-    position: absolute; top: 48px; left: 0; right: 0; z-index: 50;
-    background: var(--surface); border: 1px solid var(--border); border-radius: 20px;
-    padding: 14px; box-shadow: 0 18px 46px rgba(16, 42, 92, 0.14);
-    max-height: 360px; overflow-y: auto;
-  }
-  .search-section-title {
-    font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase;
-    letter-spacing: 0.06em; margin: 8px 0 6px;
-  }
+    input, textarea {
+      padding: 10px 12px;
+      width: 100%;
+    }
 
-  /* Main Desktop Bento Workspace (Screenshot 4) */
-  .shell {
-    max-width: 1480px;
-    margin: 0 auto;
-    padding: 18px 24px 36px;
-    display: grid;
-    grid-template-columns: 270px 1fr;
-    gap: 18px;
-  }
-  @media (max-width: 1060px) { .shell { grid-template-columns: 1fr; } }
+    input:focus, textarea:focus {
+      border-width: 2.5px;
+    }
 
-  /* Left Device Card Sidebar */
-  .device-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 22px;
-    padding: 18px;
-    margin-bottom: 14px;
-    box-shadow: 0 4px 18px rgba(16, 42, 92, 0.03);
-  }
-  .device-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
-  .phone-mini {
-    width: 42px; height: 68px; border-radius: 10px;
-    background: linear-gradient(145deg, #2563EB, #60A5FA);
-    border: 2.5px solid #1E242E; flex-shrink: 0;
-  }
-  .stat-pill-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
-  .mini-chip {
-    background: var(--tile); color: var(--ink); border-radius: 999px;
-    padding: 4px 10px; font-size: 11.5px; font-weight: 600;
-  }
+    button {
+      padding: 9px 14px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      min-height: 40px;
+      transition: transform 0.08s ease;
+    }
 
-  /* Top Quick-Action Strip (Screenshot 4) */
-  .action-strip {
-    display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px;
-  }
-  .action-chip {
-    background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
-    padding: 9px 14px; font-size: 12.5px; font-weight: 600; color: var(--ink);
-    cursor: pointer; transition: all .15s;
-  }
-  .action-chip:hover { background: var(--tile); border-color: #D2CEC4; }
-  .action-chip.active { background: var(--periwinkle); color: var(--navy); border-color: transparent; }
+    button:hover {
+      border-width: 2.5px;
+    }
 
-  /* Bento Cards */
-  .bento-grid {
-    display: grid;
-    grid-template-columns: 330px 1fr;
-    gap: 16px;
-    align-items: start;
-  }
-  @media (max-width: 960px) { .bento-grid { grid-template-columns: 1fr; } }
+    button:active {
+      transform: scale(0.98);
+    }
 
-  .card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 22px;
-    padding: 18px;
-    margin-bottom: 16px;
-    box-shadow: 0 4px 18px rgba(16, 42, 92, 0.03);
-  }
-  .card-head {
-    display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 12px; gap: 8px;
-  }
-  .card-title { font-size: 15px; font-weight: 700; }
-  .badge {
-    font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 999px;
-    background: var(--tile); color: var(--muted);
-  }
-  .badge-live { background: #DCFCE7; color: var(--green); }
-  .badge-blue { background: var(--periwinkle-soft); color: var(--navy); }
+    button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
 
-  /* Floating Phone Mirror Window (Screenshot 2) */
-  .phone-frame {
-    position: relative;
-    width: 100%;
-    aspect-ratio: 9 / 19;
-    max-height: 550px;
-    background: #141820;
-    border: 4px solid #1E242E;
-    border-radius: 28px;
-    overflow: hidden;
-    display: flex; align-items: center; justify-content: center;
-    user-select: none; touch-action: none; cursor: crosshair;
-    box-shadow: 0 14px 36px rgba(16, 42, 92, 0.14);
-  }
-  .phone-frame img { width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
-  .stage-placeholder { padding: 24px; text-align: center; color: #CBD5E1; font-size: 13px; }
-  .tap-ripple {
-    position: absolute; width: 28px; height: 28px; border-radius: 50%;
-    border: 2px solid var(--periwinkle); background: rgba(172, 198, 252, 0.35);
-    transform: translate(-50%, -50%); pointer-events: none;
-    animation: rippleOut 0.42s ease-out forwards;
-  }
-  @keyframes rippleOut {
-    from { opacity: 1; transform: translate(-50%, -50%) scale(0.5); }
-    to { opacity: 0; transform: translate(-50%, -50%) scale(1.9); }
-  }
-  .phone-toolbar {
-    display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 10px;
-  }
+    button.active-btn {
+      border: 2.5px solid #000000;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+      font-weight: 800;
+    }
 
-  /* App Streaming Grid (Screenshots 2 & 4) */
-  .apps-grid {
-    display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 10px;
-    max-height: 270px; overflow-y: auto; padding-right: 4px;
-  }
-  .app-tile {
-    display: flex; flex-direction: column; align-items: center; gap: 6px;
-    padding: 10px 6px; border-radius: 16px; border: 1px solid transparent;
-    background: var(--bg); cursor: pointer; transition: all .15s; text-align: center;
-  }
-  .app-tile:hover { background: var(--periwinkle-soft); border-color: var(--periwinkle); }
-  .app-glyph {
-    width: 42px; height: 42px; border-radius: 13px; color: #FFFFFF;
-    display: flex; align-items: center; justify-content: center;
-    font-weight: 700; font-size: 16px;
-  }
-  .app-name {
-    font-size: 11.5px; font-weight: 600; color: var(--ink);
-    width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  }
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 8px;
+      border: 1.5px solid #000000;
+      border-radius: 999px;
+      background: #FFFFFF;
+      padding: 0;
+    }
 
-  /* Two-Column Bottom Bento Row */
-  .sub-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 16px; }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #FFFFFF;
+      border: 2.5px solid #000000;
+      cursor: pointer;
+    }
 
-  /* Share Hub File Badges (Screenshot 1 & 3) */
-  .file-row {
-    display: flex; align-items: center; justify-content: space-between; gap: 10px;
-    padding: 9px 11px; border-radius: 14px; background: var(--bg); margin-bottom: 8px;
-  }
-  .file-badge {
-    width: 36px; height: 36px; border-radius: 10px; color: #fff; flex-shrink: 0;
-    display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800;
-  }
-  .list-scroll { max-height: 260px; overflow-y: auto; }
-  .row-gap { display: flex; gap: 8px; align-items: center; }
-  .row-wrap { display: flex; gap: 7px; flex-wrap: wrap; }
-  .slider-row { margin-bottom: 10px; }
-  .slider-head { display: flex; justify-content: space-between; font-size: 12.5px; color: var(--muted); margin-bottom: 3px; }
-  .slider-head strong { color: var(--ink); }
-  input[type="range"] { width: 100%; accent-color: var(--blue); cursor: pointer; }
+    input[type="range"]::-moz-range-thumb {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #FFFFFF;
+      border: 2.5px solid #000000;
+      cursor: pointer;
+    }
 
-  .toast {
-    position: fixed; bottom: 20px; right: 20px; z-index: 60;
-    background: var(--navy); color: #FFFFFF;
-    padding: 11px 16px; border-radius: 14px; font-size: 13px;
-    box-shadow: 0 12px 32px rgba(16, 42, 92, 0.25);
-  }
-</style>
+    .hidden {
+      display: none !important;
+    }
+
+    .mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+
+    /* Pairing Screen */
+    #pairView {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background: #FFFFFF;
+    }
+
+    .pair-card {
+      width: 100%;
+      max-width: 440px;
+      border: 2px solid #000000;
+      border-radius: 16px;
+      padding: 28px;
+      background: #FFFFFF;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .pair-title {
+      font-size: 26px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+
+    .pair-sub {
+      font-size: 14px;
+      border-bottom: 1px solid #000000;
+      padding-bottom: 12px;
+    }
+
+    .pin-input {
+      font-size: 28px;
+      font-weight: 800;
+      text-align: center;
+      letter-spacing: 0.35em;
+      padding: 14px;
+      border: 2px solid #000000;
+    }
+
+    .error-box {
+      border: 2px dashed #000000;
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-weight: 600;
+      font-size: 13px;
+    }
+
+    /* Main Workspace Layout */
+    #consoleView {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      background: #FFFFFF;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      background: #FFFFFF;
+      border-bottom: 2px solid #000000;
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .brand-name {
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border: 1.5px solid #000000;
+      border-radius: 999px;
+      padding: 4px 12px;
+      font-size: 12px;
+      font-weight: 700;
+      background: #FFFFFF;
+    }
+
+    .topbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .workspace {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 240px minmax(0, 1fr);
+      min-height: calc(100vh - 66px);
+    }
+
+    /* Left Section Navigation */
+    .sidebar {
+      border-right: 2px solid #000000;
+      padding: 16px 12px;
+      background: #FFFFFF;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .sidebar-label {
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 4px 10px 8px 10px;
+      border-bottom: 1px solid #000000;
+      margin-bottom: 6px;
+    }
+
+    .nav-btn {
+      width: 100%;
+      justify-content: space-between;
+      text-align: left;
+      padding: 10px 12px;
+      border: 1px solid #000000;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 13px;
+      background: #FFFFFF;
+    }
+
+    .nav-btn.active {
+      border: 2.5px solid #000000;
+      font-weight: 800;
+    }
+
+    .nav-num {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 11px;
+      font-weight: 800;
+      border: 1px solid #000000;
+      border-radius: 6px;
+      padding: 1px 6px;
+    }
+
+    /* Main Content Area */
+    .main-area {
+      padding: 20px 24px 48px 24px;
+      background: #FFFFFF;
+      max-width: 1280px;
+      width: 100%;
+    }
+
+    .section-page {
+      display: none;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .section-page.active {
+      display: flex;
+    }
+
+    .section-header {
+      border-bottom: 2px solid #000000;
+      padding-bottom: 12px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .section-kicker {
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 4px;
+    }
+
+    .section-title {
+      font-size: 24px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+
+    .section-desc {
+      font-size: 13px;
+      margin-top: 2px;
+    }
+
+    /* Cards & Grids */
+    .card {
+      border: 1.5px solid #000000;
+      border-radius: 14px;
+      padding: 18px;
+      background: #FFFFFF;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+      border-bottom: 1px solid #000000;
+      padding-bottom: 10px;
+    }
+
+    .card-title {
+      font-size: 16px;
+      font-weight: 800;
+    }
+
+    .card-sub {
+      font-size: 12px;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .grid-4 {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .stat-box {
+      border: 1.5px solid #000000;
+      border-radius: 12px;
+      padding: 12px 14px;
+      background: #FFFFFF;
+    }
+
+    .stat-label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .stat-value {
+      font-size: 20px;
+      font-weight: 800;
+      margin-top: 4px;
+    }
+
+    .btn-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .input-row > input {
+      flex: 1;
+      min-width: 180px;
+    }
+
+    /* Screen Mirror & Rotation Stage */
+    .mirror-stage-wrap {
+      border: 2px solid #000000;
+      border-radius: 14px;
+      padding: 16px;
+      background: #FFFFFF;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      min-height: 460px;
+    }
+
+    .mirror-stage-wrap:fullscreen {
+      background: #FFFFFF;
+      padding: 20px;
+      width: 100vw;
+      height: 100vh;
+    }
+
+    #mirrorCanvas {
+      border: 2px solid #000000;
+      border-radius: 10px;
+      background: #FFFFFF;
+      cursor: crosshair;
+      touch-action: none;
+      max-width: 100%;
+      max-height: 68vh;
+      display: block;
+    }
+
+    .mirror-stage-wrap:fullscreen #mirrorCanvas {
+      max-height: 82vh;
+      max-width: 94vw;
+    }
+
+    .mirror-meta {
+      font-size: 12px;
+      font-weight: 600;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      justify-content: center;
+    }
+
+    /* Audio Visualizer Canvas */
+    #audioWaveCanvas {
+      width: 100%;
+      height: 120px;
+      border: 1.5px solid #000000;
+      border-radius: 10px;
+      background: #FFFFFF;
+      display: block;
+    }
+
+    .slider-block {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      border: 1px solid #000000;
+      border-radius: 10px;
+      padding: 12px;
+    }
+
+    .slider-top {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    /* Lists */
+    .item-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .list-row {
+      border: 1.5px solid #000000;
+      border-radius: 10px;
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      background: #FFFFFF;
+    }
+
+    .list-row-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+      flex: 1;
+    }
+
+    .list-row-title {
+      font-weight: 700;
+      font-size: 14px;
+      word-break: break-word;
+    }
+
+    .list-row-sub {
+      font-size: 12px;
+      word-break: break-word;
+    }
+
+    .apps-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 10px;
+    }
+
+    .app-card {
+      border: 1.5px solid #000000;
+      border-radius: 12px;
+      padding: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      background: #FFFFFF;
+    }
+
+    .app-card-text {
+      min-width: 0;
+      flex: 1;
+    }
+
+    .app-card-name {
+      font-weight: 700;
+      font-size: 14px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .app-card-pkg {
+      font-size: 11px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Toast */
+    #toast {
+      position: fixed;
+      right: 20px;
+      bottom: 20px;
+      z-index: 99;
+      background: #FFFFFF;
+      color: #000000;
+      border: 2.5px solid #000000;
+      border-radius: 12px;
+      padding: 12px 16px;
+      font-weight: 700;
+      font-size: 13px;
+      max-width: 360px;
+      display: none;
+    }
+
+    #toast.show {
+      display: block;
+    }
+
+    /* Responsive */
+    @media (max-width: 900px) {
+      .workspace {
+        grid-template-columns: 1fr;
+      }
+      .sidebar {
+        border-right: none;
+        border-bottom: 2px solid #000000;
+        flex-direction: row;
+        flex-wrap: wrap;
+      }
+      .sidebar-label {
+        width: 100%;
+      }
+      .nav-btn {
+        width: auto;
+        flex: 1 1 150px;
+      }
+      .grid-2, .grid-3, .grid-4 {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
 </head>
 <body>
 
-<div id="authView" class="auth-wrap">
-  <div class="auth-card">
-    <div class="brand-badge"><span class="dot"></span>DeckLink Hub</div>
-    <h1>Connect to Your Phone</h1>
-    <p class="sub" id="deviceBanner">Enter the 6-digit Pairing PIN shown on your Android device.</p>
-    <form id="pairForm">
-      <label for="pinInput">6-Digit Pairing PIN</label>
-      <input id="pinInput" class="pin-input mono" type="password" inputmode="numeric" maxlength="6" placeholder="••••••" autocomplete="off" required />
-      <label for="laptopName">Laptop Name</label>
-      <input id="laptopName" type="text" placeholder="My Laptop" maxlength="40" style="margin-bottom: 16px;" />
-      <button type="submit" class="btn btn-hero btn-full">Connect &amp; Open Desktop Hub</button>
-    </form>
-    <div id="authError" class="error-box hidden"></div>
+  <!-- Hidden live MJPEG source image painted onto the rotatable canvas -->
+  <img id="mjpegSource" alt="" style="position:fixed;left:-99999px;top:-99999px;width:1px;height:1px;opacity:0;pointer-events:none;" />
+
+  <!-- PAIRING GATE -->
+  <div id="pairView">
+    <div class="pair-card">
+      <div>
+        <div class="section-kicker">DeckLink Local Control Console</div>
+        <div class="pair-title">Pair With Your Phone</div>
+      </div>
+      <div class="pair-sub" id="pairDeviceInfo">Detecting phone on local network...</div>
+      <div>
+        <label for="pinInput" style="display:block;font-weight:700;margin-bottom:6px;">Enter 6-Digit Pairing PIN</label>
+        <input id="pinInput" class="pin-input mono" type="password" inputmode="numeric" maxlength="6" placeholder="000000" autocomplete="off" />
+      </div>
+      <button id="pairBtn" type="button" style="width:100%;font-weight:800;">Connect Laptop Console</button>
+      <div id="pairError" class="error-box hidden"></div>
+      <div style="font-size:12px;">
+        Open DeckLink on your phone, turn on the Host Server, and enter the 6-digit PIN shown in Section 2.
+      </div>
+    </div>
   </div>
-</div>
 
-<div id="consoleView" class="hidden">
-  <header class="topbar">
-    <div class="nav-pills">
-      <div class="brand-badge" style="margin:0 8px 0 0;"><span class="dot"></span>DeckLink</div>
-      <button class="nav-tab active" data-view="home">Home</button>
-      <button class="nav-tab" data-view="uitree">UI Inspector</button>
-    </div>
-
-    <div class="search-wrap">
-      <input id="globalSearch" class="search-input" type="text" placeholder="Search apps and files everywhere..." autocomplete="off" />
-      <div id="searchDropdown" class="search-dropdown hidden"></div>
-    </div>
-
-    <button id="btnDisconnect" class="btn btn-pill btn-danger">× Disconnect</button>
-  </header>
-
-  <main class="shell">
-    <!-- Left Sidebar: Connected Phone Device Card & Quick Audio -->
-    <aside>
-      <div class="device-card">
-        <div class="device-row">
-          <div class="phone-mini"></div>
-          <div style="min-width:0;">
-            <div id="topDeviceName" style="font-weight:700; font-size:15px;">Android Phone</div>
-            <div id="topDeviceMeta" style="font-size:12px; color:var(--muted);">Connected over Wi-Fi</div>
-          </div>
-        </div>
-        <div class="stat-pill-row">
-          <span class="mini-chip">Battery <strong id="statBattery">--%</strong></span>
-          <span class="mini-chip">RAM <strong id="statRam">--</strong></span>
-          <span class="mini-chip">Storage <strong id="statStorage">--</strong></span>
-          <span class="mini-chip">Temp <strong id="statTemp">--°C</strong></span>
-        </div>
-        <div class="row-wrap">
-          <span id="a11yBadge" class="badge">Cross Control</span>
-          <span id="mirrorBadge" class="badge">Mirror Standby</span>
-        </div>
+  <!-- MAIN CONSOLE -->
+  <div id="consoleView" class="hidden">
+    <header class="topbar">
+      <div class="brand-group">
+        <span class="brand-name">DeckLink</span>
+        <span class="pill" id="topDevicePill">Phone Connected</span>
+        <span class="pill" id="topMirrorPill">Mirror: Standby</span>
+        <span class="pill" id="topAudioPill">Laptop Sound: Off</span>
       </div>
-
-      <div class="device-card">
-        <div class="card-head">
-          <span class="card-title">Audio &amp; Media</span>
-          <span id="ringerBadge" class="badge badge-blue">NORMAL</span>
-        </div>
-        <div class="slider-row">
-          <div class="slider-head"><span>Media</span><strong id="volMediaVal">0</strong></div>
-          <input id="volMedia" type="range" min="0" max="15" value="0" />
-        </div>
-        <div class="slider-row">
-          <div class="slider-head"><span>Ring</span><strong id="volRingVal">0</strong></div>
-          <input id="volRing" type="range" min="0" max="7" value="0" />
-        </div>
-        <div class="slider-row">
-          <div class="slider-head"><span>Notification</span><strong id="volNotifVal">0</strong></div>
-          <input id="volNotif" type="range" min="0" max="7" value="0" />
-        </div>
-        <div class="slider-row">
-          <div class="slider-head"><span>Alarm</span><strong id="volAlarmVal">0</strong></div>
-          <input id="volAlarm" type="range" min="0" max="7" value="0" />
-        </div>
-        <div class="row-wrap" style="margin-top:8px;">
-          <button class="btn btn-pill" data-ringer="normal">Normal</button>
-          <button class="btn btn-pill" data-ringer="vibrate">Vibrate</button>
-          <button class="btn btn-pill" data-ringer="silent">Silent</button>
-        </div>
-        <div class="row-wrap" style="margin-top:10px;">
-          <button class="btn" data-media="previous">Prev</button>
-          <button class="btn btn-hero" data-media="play_pause">Play / Pause</button>
-          <button class="btn" data-media="next">Next</button>
-        </div>
+      <div class="topbar-actions">
+        <button id="topQuickAudioBtn" type="button">Start Phone Sound</button>
+        <button id="topRefreshBtn" type="button">Refresh</button>
+        <button id="logoutBtn" type="button">Disconnect</button>
       </div>
-    </aside>
+    </header>
 
-    <!-- Main Content Area -->
-    <section>
-      <!-- Top Horizontal Quick-Action Strip (Screenshot 4) -->
-      <div class="action-strip">
-        <button id="btnTorch" class="action-chip">Flashlight: OFF</button>
-        <button id="btnRing" class="action-chip">Ring Phone</button>
-        <button id="btnVibrate" class="action-chip">Vibrate Ping</button>
-        <div id="macroList" class="row-wrap"></div>
-      </div>
+    <div class="workspace">
+      <!-- Dedicated Navigation for Every Single Feature Section -->
+      <nav class="sidebar" aria-label="Feature Sections">
+        <div class="sidebar-label">Feature Sections</div>
+        <button class="nav-btn active" data-section="overview" type="button">
+          <span>Overview &amp; Search</span><span class="nav-num">01</span>
+        </button>
+        <button class="nav-btn" data-section="mirror" type="button">
+          <span>Screen Mirror &amp; Rotate</span><span class="nav-num">02</span>
+        </button>
+        <button class="nav-btn" data-section="audio" type="button">
+          <span>Live Phone Sound</span><span class="nav-num">03</span>
+        </button>
+        <button class="nav-btn" data-section="apps" type="button">
+          <span>Apps Launcher</span><span class="nav-num">04</span>
+        </button>
+        <button class="nav-btn" data-section="files" type="button">
+          <span>File Transfer Vault</span><span class="nav-num">05</span>
+        </button>
+        <button class="nav-btn" data-section="clipboard" type="button">
+          <span>Clipboard Sync</span><span class="nav-num">06</span>
+        </button>
+        <button class="nav-btn" data-section="notifications" type="button">
+          <span>Notifications</span><span class="nav-num">07</span>
+        </button>
+        <button class="nav-btn" data-section="hardware" type="button">
+          <span>Hardware &amp; Macros</span><span class="nav-num">08</span>
+        </button>
+        <button class="nav-btn" data-section="inspector" type="button">
+          <span>UI Inspector</span><span class="nav-num">09</span>
+        </button>
+      </nav>
 
-      <!-- HOME BENTO VIEW -->
-      <div id="view-home" class="bento-grid">
-        <!-- Floating Phone Mirror & Touch Column -->
-        <div class="card">
-          <div class="card-head">
-            <span class="card-title">Live Phone Window</span>
-            <span class="badge badge-blue">Touch &amp; Drag</span>
-          </div>
-          <div id="phoneStage" class="phone-frame" title="Click to Tap, Drag to Swipe">
-            <img id="mirrorImg" class="hidden" alt="Live phone screen mirror" />
-            <div id="stagePlaceholder" class="stage-placeholder">
-              <div style="font-weight:700; color:#FFFFFF; margin-bottom:6px;">Stream Standby</div>
-              Tap <strong>Live Screen &amp; App Streaming</strong> on your phone to mirror video here.
-              <br /><br />
-              Clicks &amp; swipes work right here once Cross Control is enabled.
+      <main class="main-area">
+
+        <!-- SECTION 01: OVERVIEW & SEARCH -->
+        <section id="sec-overview" class="section-page active">
+          <div class="section-header">
+            <div>
+              <div class="section-kicker">Section 01</div>
+              <h1 class="section-title">Overview &amp; Search Everywhere</h1>
+              <p class="section-desc">Live phone health, service readiness, and instant search across phone apps and files.</p>
+            </div>
+            <div class="btn-row">
+              <button type="button" data-jump="mirror">Open Screen Mirror &amp; Rotate</button>
+              <button type="button" data-jump="audio">Open Live Phone Sound</button>
             </div>
           </div>
-          <div class="phone-toolbar">
-            <button class="btn" data-global="back">Back</button>
-            <button class="btn" data-global="home">Home</button>
-            <button class="btn" data-global="recents">Recents</button>
-            <button class="btn" data-global="notifications">Shade</button>
-            <button class="btn" data-global="quick_settings">Quick</button>
-            <button class="btn" data-global="screenshot">Shot</button>
-            <button class="btn" data-global="power_dialog">Power</button>
-            <button class="btn btn-danger" data-global="lock_screen">Lock</button>
-          </div>
-          <div style="margin-top:12px;">
-            <label for="remoteTextInput">Type into Phone</label>
-            <div class="row-gap">
-              <input id="remoteTextInput" type="text" placeholder="Type message or search..." />
-              <button id="btnSendText" class="btn btn-hero">Send</button>
-              <button id="btnClearText" class="btn">Clear</button>
-            </div>
-          </div>
-        </div>
 
-        <!-- Right Bento Column: App Streaming + Share Hub + Notifications -->
-        <div>
-          <!-- App Streaming Card (Screenshot 2 & 4) -->
           <div class="card">
-            <div class="card-head">
-              <span class="card-title">App Streaming</span>
-              <div class="row-gap">
-                <input id="appSearch" type="text" placeholder="Filter apps..." style="width:170px; padding:6px 12px; border-radius:999px; font-size:12.5px;" />
-                <button id="btnRefreshApps" class="btn btn-pill">Refresh</button>
+            <div class="card-header">
+              <div>
+                <div class="card-title">Search Everywhere</div>
+                <div class="card-sub">Find installed phone apps and File Vault documents from one box</div>
               </div>
+              <button id="refreshSearchIndexBtn" type="button">Sync Index</button>
             </div>
-            <div id="appsList" class="apps-grid"></div>
+            <div class="input-row">
+              <input id="globalSearchInput" type="text" placeholder="Search phone apps or files..." />
+              <button id="globalSearchClearBtn" type="button">Clear</button>
+            </div>
+            <div id="globalSearchResults" class="item-list"></div>
           </div>
 
-          <div class="sub-grid">
-            <!-- Share Hub Card: Files & Clipboard (Screenshot 3 & 4) -->
-            <div class="card">
-              <div class="card-head">
-                <span class="card-title">Share Hub</span>
-                <div class="row-gap">
-                  <input id="fileUploadInput" type="file" class="hidden" />
-                  <button id="btnUploadFile" class="btn btn-hero btn-pill">Send File</button>
-                  <button id="btnRefreshFiles" class="btn btn-pill">Refresh</button>
-                </div>
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <div class="card-title">Live Phone Telemetry</div>
+                <div class="card-sub" id="overviewModelSub">Reading phone telemetry...</div>
               </div>
-              <div id="filesList" class="list-scroll" style="margin-bottom:14px;"></div>
-
-              <label for="clipboardArea">Shared Clipboard</label>
-              <textarea id="clipboardArea" rows="2" placeholder="Sync links or notes with your phone..." style="margin-bottom:8px;"></textarea>
-              <div class="row-gap">
-                <button id="btnPullClip" class="btn btn-pill">Pull from Phone</button>
-                <button id="btnPushClip" class="btn btn-hero btn-pill">Push to Phone</button>
+              <span class="pill" id="overviewNetworkPill">Network</span>
+            </div>
+            <div class="grid-4">
+              <div class="stat-box">
+                <div class="stat-label">Battery</div>
+                <div class="stat-value" id="statBattery">--</div>
+              </div>
+              <div class="stat-box">
+                <div class="stat-label">RAM Usage</div>
+                <div class="stat-value" id="statRam">--</div>
+              </div>
+              <div class="stat-box">
+                <div class="stat-label">Storage</div>
+                <div class="stat-value" id="statStorage">--</div>
+              </div>
+              <div class="stat-box">
+                <div class="stat-label">Temperature</div>
+                <div class="stat-value" id="statTemp">--</div>
               </div>
             </div>
-
-            <!-- Notifications & Open Link Card (Screenshot 4) -->
-            <div class="card">
-              <div class="card-head">
-                <span class="card-title">Notifications</span>
-                <button id="btnRefreshNotifs" class="btn btn-pill">Refresh</button>
+            <div class="grid-4">
+              <div class="stat-box">
+                <div class="stat-label">Screen Mirror</div>
+                <div class="stat-value" style="font-size:15px;" id="statMirrorReady">--</div>
               </div>
-              <div id="notifsList" class="list-scroll" style="margin-bottom:14px;"></div>
-
-              <label for="openUrlInput">Open Link on Phone</label>
-              <div class="row-gap">
-                <input id="openUrlInput" type="url" placeholder="https://example.com" />
-                <button id="btnOpenUrl" class="btn btn-hero">Open</button>
+              <div class="stat-box">
+                <div class="stat-label">Phone Audio Capture</div>
+                <div class="stat-value" style="font-size:15px;" id="statAudioReady">--</div>
+              </div>
+              <div class="stat-box">
+                <div class="stat-label">Remote Touch</div>
+                <div class="stat-value" style="font-size:15px;" id="statTouchReady">--</div>
+              </div>
+              <div class="stat-box">
+                <div class="stat-label">Mirror Angle</div>
+                <div class="stat-value" style="font-size:15px;" id="statRotationReady">0°</div>
               </div>
             </div>
           </div>
-        </div>
-      </div>
+        </section>
 
-      <!-- UI ELEMENT INSPECTOR VIEW -->
-      <div id="view-uitree" class="hidden">
-        <div class="card">
-          <div class="card-head">
-            <span class="card-title">Live UI Element Inspector</span>
-            <button id="btnRefreshUiTree" class="btn btn-hero">Scan Active Phone Screen</button>
+        <!-- SECTION 02: SCREEN MIRROR & ROTATION (DEDICATED WHOLE SECTION) -->
+        <section id="sec-mirror" class="section-page">
+          <div class="section-header">
+            <div>
+              <div class="section-kicker">Section 02 — Dedicated Display &amp; Orientation Control</div>
+              <h1 class="section-title">Screen Mirror &amp; Rotation</h1>
+              <p class="section-desc">Rotate the mirrored phone screen to any angle (0°, 90°, 180°, 270°) with exact rotated touch, drag, and swipe mapping.</p>
+            </div>
+            <div class="btn-row">
+              <span class="pill" id="mirrorAngleBadge">Angle: 0° (Portrait)</span>
+              <button id="mirrorQuickAudioBtn" type="button">Phone Sound: Off</button>
+              <button id="mirrorFullscreenBtn" type="button">Fullscreen</button>
+            </div>
           </div>
-          <p class="sub" style="margin-bottom:12px;">Tap any visible button or text field on your phone directly by label.</p>
-          <div id="uiTreeList" class="list-scroll" style="max-height:520px;"></div>
-        </div>
-      </div>
-    </section>
-  </main>
-</div>
 
-<div id="toast" class="toast hidden"></div>
+          <!-- Dedicated Rotation Controls Panel -->
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <div class="card-title">Screen Rotation Controls</div>
+                <div class="card-sub">Switch between Portrait and Landscape views or step rotate by 90 degrees</div>
+              </div>
+              <div class="btn-row">
+                <button id="rotLeftBtn" type="button">Rotate Left (-90°)</button>
+                <button id="rotRightBtn" type="button">Rotate Right (+90°)</button>
+                <button id="rotResetBtn" type="button">Reset 0°</button>
+              </div>
+            </div>
+            <div class="grid-4">
+              <button class="rot-angle-btn active-btn" data-angle="0" type="button">0° Portrait</button>
+              <button class="rot-angle-btn" data-angle="90" type="button">90° Landscape</button>
+              <button class="rot-angle-btn" data-angle="180" type="button">180° Upside Down</button>
+              <button class="rot-angle-btn" data-angle="270" type="button">270° Landscape</button>
+            </div>
+            <div class="btn-row">
+              <button id="mirrorStartBtn" type="button">Reconnect Live Stream</button>
+              <button id="mirrorStopBtn" type="button">Pause Stream</button>
+              <button id="mirrorSnapshotBtn" type="button">Save Frame Snapshot</button>
+            </div>
+          </div>
 
-<script>
-(() => {
-  // Security: session credentials live strictly in page memory (never localStorage/sessionStorage)
-  let authToken = null;
-  let streamTicket = null;
-  let pollTimer = null;
-  let mirrorStreaming = false;
-  let torchOn = false;
-  let ringActive = false;
-  let cachedApps = [];
-  let cachedFiles = [];
+          <!-- Live Rotatable Canvas Mirror Stage -->
+          <div class="mirror-stage-wrap" id="mirrorStageWrap">
+            <canvas id="mirrorCanvas" width="360" height="640"></canvas>
+            <div class="mirror-meta">
+              <span id="mirrorStreamStatus">Waiting for phone screen mirror...</span>
+              <span id="mirrorCoordHint">Click = Tap · Hold = Long Press · Drag = Swipe</span>
+            </div>
+          </div>
 
-  const $ = (id) => document.getElementById(id);
-  const PALETTE = ["#2563EB", "#0EA5E9", "#10B981", "#F97316", "#8B5CF6", "#EC4899", "#EAB308", "#14B8A6"];
+          <!-- Android Hardware & System Keys -->
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <div class="card-title">Phone Navigation &amp; System Keys</div>
+                <div class="card-sub">Requires DeckLink Accessibility enabled on phone</div>
+              </div>
+            </div>
+            <div class="btn-row">
+              <button class="sys-key-btn" data-key="back" type="button">Back</button>
+              <button class="sys-key-btn" data-key="home" type="button">Home</button>
+              <button class="sys-key-btn" data-key="recents" type="button">Recents</button>
+              <button class="sys-key-btn" data-key="notifications" type="button">Notification Shade</button>
+              <button class="sys-key-btn" data-key="quick_settings" type="button">Quick Settings</button>
+              <button class="sys-key-btn" data-key="screenshot" type="button">Screenshot</button>
+              <button class="sys-key-btn" data-key="power_dialog" type="button">Power Menu</button>
+              <button class="sys-key-btn" data-key="lock_screen" type="button">Lock Screen</button>
+            </div>
+          </div>
 
-  function colorForString(str) {
-    let h = 0;
-    for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0;
-    return PALETTE[h % PALETTE.length];
-  }
+          <!-- Remote Keyboard Input -->
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <div class="card-title">Remote Keyboard Typing</div>
+                <div class="card-sub">Type from your laptop keyboard straight into the focused field on your phone</div>
+              </div>
+            </div>
+            <div class="input-row">
+              <input id="remoteTypeInput" type="text" placeholder="Type text to send to phone..." />
+              <button id="remoteTypeSendBtn" type="button">Send Text</button>
+              <button id="remoteTypeReplaceBtn" type="button">Replace Field</button>
+              <button id="remoteTypeClearBtn" type="button">Clear Field</button>
+            </div>
+          </div>
+        </section>
 
-  function badgeColorForFile(name) {
-    const ext = (name.split(".").pop() || "").toLowerCase();
-    if (ext === "pdf") return "#EF4444";
-    if (ext === "ppt" || ext === "pptx") return "#F97316";
-    if (ext === "xls" || ext === "xlsx" || ext === "csv") return "#65A30D";
-    if (ext === "zip" || ext === "rar" || ext === "7z") return "#9333EA";
-    return "#0284C7";
-  }
+        <!-- SECTION 03: LIVE PHONE SOUND (DEDICATED WHOLE SECTION) -->
+        <section id="sec-audio" class="section-page">
+          <div class="section-header">
+            <div>
+              <div class="section-kicker">Section 03 — Live Phone-to-Laptop Audio Bridge</div>
+              <h1 class="section-title">Live Phone Sound &amp; Audio Control</h1>
+              <p class="section-desc">Hear music, videos, and game sound from your phone directly through your laptop speakers in real time.</p>
+            </div>
+            <span class="pill" id="audioStatePill">Stream: Stopped</span>
+          </div>
 
-  function showToast(msg) {
-    const el = $("toast");
-    el.textContent = msg;
-    el.classList.remove("hidden");
-    clearTimeout(showToast._t);
-    showToast._t = setTimeout(() => el.classList.add("hidden"), 2600);
-  }
+          <!-- Phone-to-Laptop Audio Receiver Card -->
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <div class="card-title">Phone Sound on Laptop Speakers</div>
+                <div class="card-sub" id="audioTechSpec">Format: 24,000 Hz · 16-bit PCM · Mono</div>
+              </div>
+              <div class="btn-row">
+                <button id="startPhoneAudioBtn" type="button">Start Phone Sound on Laptop</button>
+                <button id="stopPhoneAudioBtn" type="button" disabled>Stop Sound</button>
+                <button id="muteLaptopAudioBtn" type="button">Mute Laptop</button>
+              </div>
+            </div>
 
-  async function api(path, options = {}) {
-    const headers = Object.assign({}, options.headers || {});
-    if (authToken) headers["Authorization"] = "Bearer " + authToken;
-    const res = await fetch(path, Object.assign({}, options, { headers }));
-    if (res.status === 401 && authToken) {
-      logoutLocal("Session revoked or expired on phone.");
-      throw new Error("Unauthorized");
-    }
-    const text = await res.text();
-    let data = {};
-    try { data = text ? JSON.parse(text) : {}; } catch (_) {}
-    if (!res.ok) throw new Error(data.error || ("Request failed (" + res.status + ")"));
-    return data;
-  }
+            <div id="audioNoticeBox" class="error-box hidden"></div>
 
-  async function initPing() {
-    try {
-      const info = await fetch("/api/ping").then(r => r.json());
-      if (info.deviceModel) {
-        $("deviceBanner").textContent = "Device: " + info.deviceModel + " — enter the 6-digit PIN shown in DeckLink.";
+            <canvas id="audioWaveCanvas" width="840" height="120"></canvas>
+
+            <div class="grid-3">
+              <div class="stat-box">
+                <div class="stat-label">Phone Capture Status</div>
+                <div class="stat-value" style="font-size:16px;" id="audioPhoneCaptureStat">Checking...</div>
+              </div>
+              <div class="stat-box">
+                <div class="stat-label">Laptop Playback</div>
+                <div class="stat-value" style="font-size:16px;" id="audioLaptopPlayStat">Idle</div>
+              </div>
+              <div class="stat-box">
+                <div class="stat-label">Buffer Latency</div>
+                <div class="stat-value mono" style="font-size:16px;" id="audioLatencyStat">-- ms</div>
+              </div>
+            </div>
+
+            <div class="slider-block">
+              <div class="slider-top">
+                <span>Laptop Speaker Volume</span>
+                <span class="mono" id="laptopGainLabel">100%</span>
+              </div>
+              <input id="laptopGainSlider" type="range" min="0" max="150" value="100" />
+            </div>
+          </div>
+
+          <!-- Phone Hardware Volume Sliders -->
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <div class="card-title">Phone Volume Channels</div>
+                <div class="card-sub">Adjust hardware volume levels directly on your phone</div>
+              </div>
+              <div class="btn-row">
+                <button class="ringer-btn" data-mode="normal" type="button">Ringer: Normal</button>
+                <button class="ringer-btn" data-mode="vibrate" type="button">Ringer: Vibrate</button>
+                <button class="ringer-btn" data-mode="silent" type="button">Ringer: Silent</button>
+              </div>
+            </div>
+            <div class="grid-2">
+              <div class="slider-block">
+                <div class="slider-top"><span>Media Volume</span><span class="mono" id="volMediaVal">0 / 0</span></div>
+                <input id="volMediaSlider" type="range" min="0" max="15" value="0" />
+              </div>
+              <div class="slider-block">
+                <div class="slider-top"><span>Ring Volume</span><span class="mono" id="volRingVal">0 / 0</span></div>
+                <input id="volRingSlider" type="range" min="0" max="15" value="0" />
+              </div>
+              <div class="slider-block">
+                <div class="slider-top"><span>Notification Volume</span><span class="mono" id="volNotifVal">0 / 0</span></div>
+                <input id="volNotifSlider" type="range" min="0" max="15" value="0" />
+              </div>
+              <div class="slider-block">
+                <div class="slider-top"><span>Alarm Volume</span><span class="mono" id="volAlarmVal">0 / 0</span></div>
+                <input id="volAlarmSlider" type="range" min="0" max="15" value="0" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Media Transport Controls -->
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <div class="card-title">Phone Media Playback Transport</div>
+                <div class="card-sub">Control active music or video players on your phone</div>
+              </div>
+            </div>
+            <div class="btn-row">
+              <button class="media-btn" data-cmd="previous" type="button">Previous Track</button>
+              <button class="media-btn" data-cmd="play_pause" type="button">Play / Pause</button>
+              <button class="media-btn" data-cmd="next" type="button">Next Track</button>
+              <button class="media-btn" data-cmd="stop" type="button">Stop</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- SECTION 04: APPS LAUNCHER -->
+        <section id="sec-apps" class="section-page">
+          <div class="section-header">
+            <div>
+              <div class="section-kicker">Section 04</div>
+              <h1 class="section-title">Phone Apps Launcher</h1>
+              <p class="section-desc">Search and launch any installed application on your phone directly from your laptop.</p>
+            </div>
+            <button id="reloadAppsBtn" type="button">Refresh Apps</button>
+          </div>
+          <div class="card">
+            <div class="input-row">
+              <input id="appFilterInput" type="text" placeholder="Filter apps by name or package..." />
+              <span class="pill" id="appsCountPill">0 apps</span>
+            </div>
+            <div id="appsGrid" class="apps-grid"></div>
+          </div>
+        </section>
+
+        <!-- SECTION 05: FILE TRANSFER VAULT -->
+        <section id="sec-files" class="section-page">
+          <div class="section-header">
+            <div>
+              <div class="section-kicker">Section 05</div>
+              <h1 class="section-title">File Transfer Vault</h1>
+              <p class="section-desc">Send files from laptop to phone or download shared files from phone to laptop (up to 25 MB per file).</p>
+            </div>
+            <button id="reloadFilesBtn" type="button">Refresh Files</button>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <div class="card-title">Upload File to Phone</div>
+                <div class="card-sub">Choose a file from your laptop to store inside the phone Vault</div>
+              </div>
+            </div>
+            <div class="input-row">
+              <input id="fileUploadInput" type="file" />
+              <button id="fileUploadBtn" type="button">Upload to Phone</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <div class="card-title">Phone Vault Files</div>
+                <div class="card-sub">Download to your laptop or delete from phone</div>
+              </div>
+              <span class="pill" id="filesCountPill">0 files</span>
+            </div>
+            <div id="filesList" class="item-list"></div>
+          </div>
+        </section>
+
+        <!-- SECTION 06: CLIPBOARD SYNC -->
+        <section id="sec-clipboard" class="section-page">
+          <div class="section-header">
+            <div>
+              <div class="section-kicker">Section 06</div>
+              <h1 class="section-title">Bidirectional Clipboard Sync</h1>
+              <p class="section-desc">Read your phone's clipboard text or send text from your laptop to your phone clipboard.</p>
+            </div>
+          </div>
+          <div class="card">
+            <div class="btn-row">
+              <button id="clipPullBtn" type="button">Pull From Phone</button>
+              <button id="clipPushBtn" type="button">Push to Phone</button>
+              <button id="clipCopyLocalBtn" type="button">Copy to Laptop</button>
+              <button id="clipClearBtn" type="button">Clear Box</button>
+            </div>
+            <textarea id="clipTextarea" rows="8" placeholder="Synced clipboard content appears here..."></textarea>
+          </div>
+        </section>
+
+        <!-- SECTION 07: NOTIFICATIONS BRIDGE -->
+        <section id="sec-notifications" class="section-page">
+          <div class="section-header">
+            <div>
+              <div class="section-kicker">Section 07</div>
+              <h1 class="section-title">Phone Notifications Bridge</h1>
+              <p class="section-desc">View live phone notifications on your laptop and dismiss them remotely.</p>
+            </div>
+            <div class="btn-row">
+              <span class="pill" id="notifBridgePill">Status: Checking</span>
+              <button id="reloadNotifsBtn" type="button">Refresh Notifications</button>
+            </div>
+          </div>
+          <div class="card">
+            <div id="notifsList" class="item-list"></div>
+          </div>
+        </section>
+
+        <!-- SECTION 08: HARDWARE & MACROS -->
+        <section id="sec-hardware" class="section-page">
+          <div class="section-header">
+            <div>
+              <div class="section-kicker">Section 08</div>
+              <h1 class="section-title">Hardware Controls &amp; Macros</h1>
+              <p class="section-desc">Toggle phone flashlight, ring to locate phone, send haptic pings, open web links, and run automation macros.</p>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <div class="card-title">Hardware Actions</div>
+                <div class="card-sub">Direct hardware toggles on your phone</div>
+              </div>
+            </div>
+            <div class="btn-row">
+              <button id="torchToggleBtn" type="button">Flashlight: OFF</button>
+              <button id="ringToggleBtn" type="button">Find Phone Ring: OFF</button>
+              <button id="vibratePingBtn" type="button">Vibrate Ping</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <div class="card-title">Open Web Link on Phone</div>
+                <div class="card-sub">Launch any http:// or https:// URL in your phone's browser</div>
+              </div>
+            </div>
+            <div class="input-row">
+              <input id="openUrlInput" type="url" placeholder="https://example.com" />
+              <button id="openUrlBtn" type="button">Open on Phone</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <div class="card-title">One-Tap Automation Macros</div>
+                <div class="card-sub">Execute multi-step device routines remotely</div>
+              </div>
+              <button id="reloadMacrosBtn" type="button">Refresh Macros</button>
+            </div>
+            <div id="macrosList" class="item-list"></div>
+          </div>
+        </section>
+
+        <!-- SECTION 09: UI INSPECTOR -->
+        <section id="sec-inspector" class="section-page">
+          <div class="section-header">
+            <div>
+              <div class="section-kicker">Section 09</div>
+              <h1 class="section-title">Accessibility UI Inspector</h1>
+              <p class="section-desc">Inspect interactive buttons and text fields currently visible on your phone screen and trigger them precisely.</p>
+            </div>
+            <button id="scanUiTreeBtn" type="button">Scan Current Phone Screen</button>
+          </div>
+          <div class="card">
+            <div id="uiNodesList" class="item-list"></div>
+          </div>
+        </section>
+
+      </main>
+    </div>
+  </div>
+
+  <div id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    (function () {
+      "use strict";
+
+      // In-memory credentials only (never written to localStorage/sessionStorage)
+      let authToken = null;
+      let streamTicket = null;
+      let pollTimer = null;
+      let currentStatus = null;
+      let cachedApps = [];
+      let cachedFiles = [];
+
+      // Mirror & Rotation state
+      let mirrorRotation = 0; // 0 | 90 | 180 | 270
+      let mirrorRunning = false;
+      let mirrorRafId = null;
+      let pointerDownInfo = null;
+
+      // Live Phone Audio WebAudio streaming state
+      let audioActive = false;
+      let audioMuted = false;
+      let audioGainPercent = 100;
+      let audioAbortController = null;
+      let audioCtx = null;
+      let audioGainNode = null;
+      let audioAnalyser = null;
+      let audioNextPlayTime = 0;
+      let audioSampleRate = 24000;
+      let audioWaveRafId = null;
+      let lastAudioLatencyMs = 0;
+
+      // Element refs
+      const $ = (id) => document.getElementById(id);
+      const pairView = $("pairView");
+      const consoleView = $("consoleView");
+      const pairDeviceInfo = $("pairDeviceInfo");
+      const pinInput = $("pinInput");
+      const pairBtn = $("pairBtn");
+      const pairError = $("pairError");
+      const mjpegSource = $("mjpegSource");
+      const mirrorCanvas = $("mirrorCanvas");
+      const mirrorCtx = mirrorCanvas.getContext("2d");
+      const audioWaveCanvas = $("audioWaveCanvas");
+      const audioWaveCtx = audioWaveCanvas.getContext("2d");
+
+      let toastTimer = null;
+      function showToast(msg) {
+        const el = $("toast");
+        el.textContent = msg;
+        el.classList.add("show");
+        if (toastTimer) clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => el.classList.remove("show"), 3200);
       }
-    } catch (_) {}
-  }
 
-  function logoutLocal(reason) {
-    authToken = null;
-    streamTicket = null;
-    mirrorStreaming = false;
-    clearInterval(pollTimer);
-    $("mirrorImg").removeAttribute("src");
-    $("mirrorImg").classList.add("hidden");
-    $("stagePlaceholder").classList.remove("hidden");
-    $("consoleView").classList.add("hidden");
-    $("authView").classList.remove("hidden");
-    $("pinInput").value = "";
-    if (reason) {
-      $("authError").textContent = reason;
-      $("authError").classList.remove("hidden");
-    }
-  }
-
-  $("pairForm").addEventListener("submit", async (e) => {
-    e.preventDefault();
-    $("authError").classList.add("hidden");
-    const pin = $("pinInput").value.trim();
-    const label = $("laptopName").value.trim() || "My Laptop";
-    try {
-      const res = await fetch("/api/auth/pair", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pin, clientLabel: label })
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        $("authError").textContent = data.error || "Pairing failed";
-        $("authError").classList.remove("hidden");
-        return;
+      async function apiFetch(path, options = {}) {
+        const headers = Object.assign({}, options.headers || {});
+        if (authToken) {
+          headers["Authorization"] = "Bearer " + authToken;
+        }
+        const res = await fetch(path, Object.assign({}, options, { headers }));
+        if (res.status === 401 && authToken) {
+          disconnectLocal("Session expired or revoked on phone");
+          throw new Error("Unauthorized");
+        }
+        const ct = res.headers.get("content-type") || "";
+        const data = ct.includes("application/json") ? await res.json() : await res.text();
+        if (!res.ok) {
+          const errMsg = (data && data.error) ? data.error : ("Request failed (" + res.status + ")");
+          throw new Error(errMsg);
+        }
+        return data;
       }
-      authToken = data.token;
-      streamTicket = data.streamTicket;
-      $("authView").classList.add("hidden");
-      $("consoleView").classList.remove("hidden");
-      startConsole();
-    } catch (err) {
-      $("authError").textContent = "Cannot reach phone server: " + err.message;
-      $("authError").classList.remove("hidden");
-    }
-  });
 
-  $("btnDisconnect").addEventListener("click", async () => {
-    try { await api("/api/auth/logout", { method: "POST" }); } catch (_) {}
-    logoutLocal("");
-  });
-
-  // Top nav view switcher
-  document.querySelectorAll(".nav-tab").forEach(btn => {
-    btn.addEventListener("click", () => {
-      document.querySelectorAll(".nav-tab").forEach(b => b.classList.remove("active"));
-      btn.classList.add("active");
-      const v = btn.dataset.view;
-      $("view-home").classList.toggle("hidden", v !== "home");
-      $("view-uitree").classList.toggle("hidden", v !== "uitree");
-      if (v === "uitree") loadUiTree();
-    });
-  });
-
-  // Search Everywhere Dropdown (Screenshot 1)
-  $("globalSearch").addEventListener("input", () => {
-    const q = $("globalSearch").value.trim().toLowerCase();
-    const dd = $("searchDropdown");
-    if (!q) { dd.classList.add("hidden"); return; }
-    dd.replaceChildren();
-    const apps = cachedApps.filter(a => a.label.toLowerCase().includes(q) || a.packageName.toLowerCase().includes(q)).slice(0, 5);
-    const files = cachedFiles.filter(f => f.name.toLowerCase().includes(q)).slice(0, 5);
-
-    if (apps.length === 0 && files.length === 0) {
-      const msg = document.createElement("div");
-      msg.className = "sub";
-      msg.style.margin = "0";
-      msg.textContent = "No matching apps or files found.";
-      dd.appendChild(msg);
-      dd.classList.remove("hidden");
-      return;
-    }
-
-    if (apps.length > 0) {
-      const h = document.createElement("div");
-      h.className = "search-section-title";
-      h.textContent = "Apps on Phone";
-      dd.appendChild(h);
-      apps.forEach(app => {
-        const row = document.createElement("div");
-        row.className = "file-row";
-        const left = document.createElement("div");
-        left.style.fontWeight = "600";
-        left.style.fontSize = "13px";
-        left.textContent = app.label;
-        const btn = document.createElement("button");
-        btn.className = "btn btn-hero btn-pill";
-        btn.textContent = "Open";
-        btn.addEventListener("click", async () => {
-          await launchApp(app);
-          dd.classList.add("hidden");
-          $("globalSearch").value = "";
+      // Navigation between dedicated feature sections
+      function switchSection(sectionId) {
+        document.querySelectorAll(".nav-btn").forEach((btn) => {
+          btn.classList.toggle("active", btn.dataset.section === sectionId);
         });
-        row.append(left, btn);
-        dd.appendChild(row);
-      });
-    }
+        document.querySelectorAll(".section-page").forEach((sec) => {
+          sec.classList.toggle("active", sec.id === "sec-" + sectionId);
+        });
 
-    if (files.length > 0) {
-      const h = document.createElement("div");
-      h.className = "search-section-title";
-      h.textContent = "Share Hub Files";
-      dd.appendChild(h);
-      files.forEach(f => {
-        const row = document.createElement("div");
-        row.className = "file-row";
-        const left = document.createElement("div");
-        left.style.fontWeight = "600";
-        left.style.fontSize = "13px";
-        left.textContent = f.name;
-        const dl = document.createElement("a");
-        dl.className = "btn btn-pill";
-        dl.textContent = "Download";
-        dl.href = "/api/files/download?name=" + encodeURIComponent(f.name) + "&ticket=" + encodeURIComponent(streamTicket || "");
-        dl.setAttribute("download", f.name);
-        row.append(left, dl);
-        dd.appendChild(row);
-      });
-    }
-    dd.classList.remove("hidden");
-  });
-
-  document.addEventListener("click", (e) => {
-    if (!e.target.closest(".search-wrap")) $("searchDropdown").classList.add("hidden");
-  });
-
-  async function startConsole() {
-    await refreshStatus();
-    loadMacros();
-    loadApps();
-    loadFiles();
-    loadNotifications();
-    pollTimer = setInterval(refreshStatus, 2500);
-  }
-
-  async function refreshStatus() {
-    if (!authToken) return;
-    try {
-      const s = await api("/api/status");
-      $("topDeviceName").textContent = s.deviceModel || "Android Phone";
-      $("topDeviceMeta").textContent = (s.ipAddress || "") + " • " + (s.networkType || "");
-      $("statBattery").textContent = s.batteryPercent + "%" + (s.isCharging ? " ⚡" : "");
-      $("statRam").textContent = (Math.round(s.ramUsedMb / 102.4) / 10) + "/" + (Math.round(s.ramTotalMb / 102.4) / 10) + "G";
-      $("statStorage").textContent = Number(s.storageUsedGb).toFixed(0) + "/" + Number(s.storageTotalGb).toFixed(0) + "G";
-      $("statTemp").textContent = Number(s.batteryTempC).toFixed(1) + "°C";
-
-      if (s.volumes) {
-        updateSlider("volMedia", "volMediaVal", s.volumes.media, s.volumes.mediaMax);
-        updateSlider("volRing", "volRingVal", s.volumes.ring, s.volumes.ringMax);
-        updateSlider("volNotif", "volNotifVal", s.volumes.notification, s.volumes.notificationMax);
-        updateSlider("volAlarm", "volAlarmVal", s.volumes.alarm, s.volumes.alarmMax);
-        $("ringerBadge").textContent = (s.volumes.ringerMode || "normal").toUpperCase();
-      }
-
-      if (s.readiness) {
-        torchOn = !!s.readiness.torchEnabled;
-        ringActive = !!s.readiness.finderRingActive;
-        $("btnTorch").textContent = torchOn ? "Flashlight: ON" : "Flashlight: OFF";
-        $("btnTorch").classList.toggle("active", torchOn);
-        $("btnRing").textContent = ringActive ? "Stop Ringing" : "Ring Phone";
-        $("btnRing").classList.toggle("active", ringActive);
-
-        $("a11yBadge").textContent = s.readiness.accessibilityConnected ? "Cross Control Active" : "Enable Cross Control";
-        $("a11yBadge").className = "badge " + (s.readiness.accessibilityConnected ? "badge-live" : "");
-
-        const canMirror = s.readiness.screenMirrorActive && s.capabilities && s.capabilities.screenMirror;
-        $("mirrorBadge").textContent = canMirror ? "Live Mirror ON" : "Mirror Standby";
-        $("mirrorBadge").className = "badge " + (canMirror ? "badge-live" : "");
-        if (canMirror && !mirrorStreaming && streamTicket) {
-          mirrorStreaming = true;
-          $("mirrorImg").src = "/api/stream/mjpeg?ticket=" + encodeURIComponent(streamTicket) + "&t=" + Date.now();
-          $("mirrorImg").classList.remove("hidden");
-          $("stagePlaceholder").classList.add("hidden");
-        } else if (!canMirror && mirrorStreaming) {
-          mirrorStreaming = false;
-          $("mirrorImg").removeAttribute("src");
-          $("mirrorImg").classList.add("hidden");
-          $("stagePlaceholder").classList.remove("hidden");
+        if (sectionId === "mirror" && authToken && !mirrorRunning) {
+          startMirrorStream();
+        }
+        if (sectionId === "apps" && cachedApps.length === 0) {
+          loadApps();
+        }
+        if (sectionId === "files") {
+          loadFiles();
+        }
+        if (sectionId === "notifications") {
+          loadNotifications();
+        }
+        if (sectionId === "hardware") {
+          loadMacros();
         }
       }
-    } catch (_) {}
-  }
 
-  function updateSlider(inputId, labelId, val, max) {
-    const el = $(inputId);
-    el.max = max || 10;
-    if (document.activeElement !== el) el.value = val;
-    $(labelId).textContent = val + " / " + (max || 10);
-  }
+      document.querySelectorAll(".nav-btn").forEach((btn) => {
+        btn.addEventListener("click", () => switchSection(btn.dataset.section));
+      });
+      document.querySelectorAll("[data-jump]").forEach((btn) => {
+        btn.addEventListener("click", () => switchSection(btn.dataset.jump));
+      });
 
-  // Phone Mirror Touch & Swipe
-  const stage = $("phoneStage");
-  let dragStart = null;
-  let dragTime = 0;
-
-  function normalizedPoint(ev) {
-    const rect = stage.getBoundingClientRect();
-    const x = Math.max(0, Math.min(1, (ev.clientX - rect.left) / rect.width));
-    const y = Math.max(0, Math.min(1, (ev.clientY - rect.top) / rect.height));
-    return { x, y, px: ev.clientX - rect.left, py: ev.clientY - rect.top };
-  }
-
-  function spawnRipple(px, py) {
-    const dot = document.createElement("div");
-    dot.className = "tap-ripple";
-    dot.style.left = px + "px";
-    dot.style.top = py + "px";
-    stage.appendChild(dot);
-    setTimeout(() => dot.remove(), 440);
-  }
-
-  stage.addEventListener("pointerdown", (ev) => {
-    dragStart = normalizedPoint(ev);
-    dragTime = Date.now();
-  });
-
-  stage.addEventListener("pointerup", async (ev) => {
-    if (!dragStart) return;
-    const end = normalizedPoint(ev);
-    const dist = Math.hypot(end.x - dragStart.x, end.y - dragStart.y);
-    const elapsed = Date.now() - dragTime;
-    const start = dragStart;
-    dragStart = null;
-
-    spawnRipple(end.px, end.py);
-    try {
-      if (dist > 0.045) {
-        await api("/api/input/swipe", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ x1: start.x, y1: start.y, x2: end.x, y2: end.y, durationMs: Math.max(120, Math.min(700, elapsed)) })
-        });
-      } else {
-        await api("/api/input/tap", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ x: end.x, y: end.y, durationMs: elapsed > 450 ? 620 : 70 })
-        });
+      // Ping phone before pairing
+      async function pingPhone() {
+        try {
+          const info = await fetch("/api/ping").then((r) => r.json());
+          pairDeviceInfo.textContent = "Phone detected: " + (info.deviceModel || "Android Device");
+        } catch (e) {
+          pairDeviceInfo.textContent = "Unable to reach phone server. Check Wi-Fi or USB bridge.";
+        }
       }
-    } catch (err) { showToast(err.message); }
-  });
 
-  document.querySelectorAll("[data-global]").forEach(btn => {
-    btn.addEventListener("click", async () => {
-      try {
-        await api("/api/input/global", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: btn.dataset.global })
-        });
-        showToast("Sent: " + btn.textContent);
-      } catch (err) { showToast(err.message); }
-    });
-  });
-
-  $("btnSendText").addEventListener("click", async () => {
-    const val = $("remoteTextInput").value;
-    if (!val) return;
-    try {
-      await api("/api/input/text", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: val, append: true })
-      });
-      $("remoteTextInput").value = "";
-      showToast("Typed on phone");
-    } catch (err) { showToast(err.message); }
-  });
-
-  $("btnClearText").addEventListener("click", async () => {
-    try {
-      await api("/api/input/text", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ clear: true })
-      });
-      showToast("Cleared active field");
-    } catch (err) { showToast(err.message); }
-  });
-
-  [["volMedia", "media"], ["volRing", "ring"], ["volNotif", "notification"], ["volAlarm", "alarm"]].forEach(([id, stream]) => {
-    $(id).addEventListener("change", async () => {
-      try {
-        await api("/api/audio/volume", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ stream, level: Number($(id).value) })
-        });
-        refreshStatus();
-      } catch (err) { showToast(err.message); }
-    });
-  });
-
-  document.querySelectorAll("[data-ringer]").forEach(btn => {
-    btn.addEventListener("click", async () => {
-      try {
-        await api("/api/audio/ringer", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ mode: btn.dataset.ringer })
-        });
-        showToast("Ringer -> " + btn.textContent);
-        refreshStatus();
-      } catch (err) { showToast(err.message); }
-    });
-  });
-
-  document.querySelectorAll("[data-media]").forEach(btn => {
-    btn.addEventListener("click", async () => {
-      try {
-        await api("/api/media/key", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ command: btn.dataset.media })
-        });
-        showToast("Media: " + btn.textContent);
-      } catch (err) { showToast(err.message); }
-    });
-  });
-
-  $("btnTorch").addEventListener("click", async () => {
-    try {
-      const res = await api("/api/device/torch", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ enabled: !torchOn })
-      });
-      torchOn = !!res.enabled;
-      refreshStatus();
-    } catch (err) { showToast(err.message); }
-  });
-
-  $("btnRing").addEventListener("click", async () => {
-    try {
-      const res = await api("/api/device/ring", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ active: !ringActive })
-      });
-      ringActive = !!res.active;
-      refreshStatus();
-    } catch (err) { showToast(err.message); }
-  });
-
-  $("btnVibrate").addEventListener("click", async () => {
-    try {
-      await api("/api/device/vibrate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ durationMs: 240 })
-      });
-      showToast("Phone vibrated");
-    } catch (err) { showToast(err.message); }
-  });
-
-  $("btnOpenUrl").addEventListener("click", async () => {
-    const url = $("openUrlInput").value.trim();
-    if (!url) return;
-    try {
-      await api("/api/device/open-url", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url })
-      });
-      $("openUrlInput").value = "";
-      showToast("Opened link on phone");
-    } catch (err) { showToast(err.message); }
-  });
-
-  $("btnPullClip").addEventListener("click", async () => {
-    try {
-      const res = await api("/api/clipboard");
-      $("clipboardArea").value = res.text || "";
-      showToast("Pulled phone clipboard");
-    } catch (err) { showToast(err.message); }
-  });
-
-  $("btnPushClip").addEventListener("click", async () => {
-    try {
-      await api("/api/clipboard", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: $("clipboardArea").value })
-      });
-      showToast("Copied to phone clipboard");
-    } catch (err) { showToast(err.message); }
-  });
-
-  async function loadMacros() {
-    try {
-      const res = await api("/api/macros");
-      const wrap = $("macroList");
-      wrap.replaceChildren();
-      (res.macros || []).forEach(m => {
-        const b = document.createElement("button");
-        b.className = "action-chip";
-        b.textContent = m.title;
-        b.title = m.steps;
-        b.addEventListener("click", async () => {
-          try {
-            const r = await api("/api/macros/run", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ id: m.id })
-            });
-            showToast(r.message || "Macro applied");
-            refreshStatus();
-          } catch (err) { showToast(err.message); }
-        });
-        wrap.appendChild(b);
-      });
-    } catch (_) {}
-  }
-
-  async function launchApp(app) {
-    try {
-      await api("/api/apps/launch", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ packageName: app.packageName })
-      });
-      showToast("Opened " + app.label + " on phone");
-    } catch (err) { showToast(err.message); }
-  }
-
-  async function loadApps() {
-    try {
-      const res = await api("/api/apps");
-      cachedApps = res.apps || [];
-      renderApps();
-    } catch (_) {}
-  }
-
-  function renderApps() {
-    const q = $("appSearch").value.trim().toLowerCase();
-    const list = $("appsList");
-    list.replaceChildren();
-    const filtered = cachedApps.filter(a => !q || a.label.toLowerCase().includes(q) || a.packageName.toLowerCase().includes(q));
-    if (filtered.length === 0) {
-      const empty = document.createElement("div");
-      empty.className = "sub";
-      empty.textContent = "No matching apps found.";
-      list.appendChild(empty);
-      return;
-    }
-    filtered.forEach(app => {
-      const tile = document.createElement("button");
-      tile.className = "app-tile";
-      tile.title = app.packageName;
-      const glyph = document.createElement("div");
-      glyph.className = "app-glyph";
-      glyph.style.background = colorForString(app.packageName);
-      glyph.textContent = (app.label || "?").slice(0, 1).toUpperCase();
-      const name = document.createElement("div");
-      name.className = "app-name";
-      name.textContent = app.label;
-      tile.append(glyph, name);
-      tile.addEventListener("click", () => launchApp(app));
-      list.appendChild(tile);
-    });
-  }
-
-  $("appSearch").addEventListener("input", renderApps);
-  $("btnRefreshApps").addEventListener("click", loadApps);
-
-  async function loadFiles() {
-    try {
-      const res = await api("/api/files");
-      cachedFiles = res.files || [];
-      const list = $("filesList");
-      list.replaceChildren();
-      if (cachedFiles.length === 0) {
-        const empty = document.createElement("div");
-        empty.className = "sub";
-        empty.style.margin = "0";
-        empty.textContent = "No shared files yet. Send a file from your laptop or add one in Share Hub on your phone.";
-        list.appendChild(empty);
-        return;
-      }
-      cachedFiles.forEach(f => {
-        const row = document.createElement("div");
-        row.className = "file-row";
-        const badge = document.createElement("div");
-        badge.className = "file-badge";
-        badge.style.background = badgeColorForFile(f.name);
-        badge.textContent = (f.name.split(".").pop() || "FILE").toUpperCase().slice(0, 4);
-
-        const info = document.createElement("div");
-        info.style.flex = "1";
-        info.style.minWidth = "0";
-        const t = document.createElement("div");
-        t.style.fontSize = "13px";
-        t.style.fontWeight = "600";
-        t.style.whiteSpace = "nowrap";
-        t.style.overflow = "hidden";
-        t.style.textOverflow = "ellipsis";
-        t.textContent = f.name;
-        const s = document.createElement("div");
-        s.style.fontSize = "11px";
-        s.style.color = "var(--muted)";
-        s.textContent = formatSize(f.sizeBytes);
-        info.append(t, s);
-
-        const actions = document.createElement("div");
-        actions.className = "row-gap";
-        const dl = document.createElement("a");
-        dl.className = "btn btn-pill";
-        dl.textContent = "Save";
-        dl.href = "/api/files/download?name=" + encodeURIComponent(f.name) + "&ticket=" + encodeURIComponent(streamTicket || "");
-        dl.setAttribute("download", f.name);
-
-        const del = document.createElement("button");
-        del.className = "btn btn-danger btn-pill";
-        del.textContent = "×";
-        del.title = "Delete file";
-        del.addEventListener("click", async () => {
-          try {
-            await api("/api/files?name=" + encodeURIComponent(f.name), { method: "DELETE" });
-            showToast("Deleted " + f.name);
-            loadFiles();
-          } catch (err) { showToast(err.message); }
-        });
-
-        actions.append(dl, del);
-        row.append(badge, info, actions);
-        list.appendChild(row);
-      });
-    } catch (_) {}
-  }
-
-  $("btnUploadFile").addEventListener("click", () => $("fileUploadInput").click());
-  $("fileUploadInput").addEventListener("change", async (ev) => {
-    const file = ev.target.files && ev.target.files[0];
-    if (!file) return;
-    try {
-      const buf = await file.arrayBuffer();
-      await api("/api/files/upload?name=" + encodeURIComponent(file.name), {
-        method: "POST",
-        headers: { "Content-Type": "application/octet-stream" },
-        body: buf
-      });
-      showToast("Sent " + file.name + " to phone Share Hub");
-      loadFiles();
-    } catch (err) { showToast(err.message); }
-    finally { ev.target.value = ""; }
-  });
-  $("btnRefreshFiles").addEventListener("click", loadFiles);
-
-  async function loadNotifications() {
-    try {
-      const res = await api("/api/notifications");
-      const list = $("notifsList");
-      list.replaceChildren();
-      if (!res.connected) {
-        const msg = document.createElement("div");
-        msg.className = "sub";
-        msg.style.margin = "0";
-        msg.textContent = "Enable Notifications on your phone to view and dismiss alerts here.";
-        list.appendChild(msg);
-        return;
-      }
-      const items = res.notifications || [];
-      if (items.length === 0) {
-        const msg = document.createElement("div");
-        msg.className = "sub";
-        msg.style.margin = "0";
-        msg.textContent = "All caught up — no active phone notifications.";
-        list.appendChild(msg);
-        return;
-      }
-      items.forEach(n => {
-        const row = document.createElement("div");
-        row.className = "file-row";
-        const info = document.createElement("div");
-        info.style.flex = "1";
-        info.style.minWidth = "0";
-        const t = document.createElement("div");
-        t.style.fontSize = "12.5px";
-        t.style.fontWeight = "700";
-        t.textContent = n.appName + " • " + n.title;
-        const s = document.createElement("div");
-        s.style.fontSize = "12px";
-        s.style.color = "var(--muted)";
-        s.textContent = n.text || "";
-        info.append(t, s);
-        row.appendChild(info);
-        if (n.isClearable) {
-          const btn = document.createElement("button");
-          btn.className = "btn btn-pill";
-          btn.textContent = "Dismiss";
-          btn.addEventListener("click", async () => {
-            try {
-              await api("/api/notifications/dismiss", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ key: n.key })
-              });
-              loadNotifications();
-            } catch (err) { showToast(err.message); }
+      async function performPair() {
+        pairError.classList.add("hidden");
+        const pin = pinInput.value.trim();
+        if (pin.length !== 6) {
+          pairError.textContent = "Please enter the exact 6-digit pairing PIN shown on your phone.";
+          pairError.classList.remove("hidden");
+          return;
+        }
+        pairBtn.disabled = true;
+        try {
+          const data = await fetch("/api/auth/pair", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ pin: pin, clientLabel: navigator.platform || "Laptop Browser" })
+          }).then(async (r) => {
+            const j = await r.json();
+            if (!r.ok) throw new Error(j.error || "Pairing failed");
+            return j;
           });
-          row.appendChild(btn);
+          authToken = data.token;
+          streamTicket = data.streamTicket;
+          pinInput.value = "";
+          pairView.classList.add("hidden");
+          consoleView.classList.remove("hidden");
+          showToast("Connected to phone");
+          await refreshStatus();
+          loadApps();
+          loadFiles();
+          loadNotifications();
+          loadMacros();
+          startPolling();
+          startMirrorLoop();
+          drawIdleWave();
+        } catch (e) {
+          pairError.textContent = e.message || "Invalid PIN";
+          pairError.classList.remove("hidden");
+        } finally {
+          pairBtn.disabled = false;
         }
-        list.appendChild(row);
-      });
-    } catch (_) {}
-  }
-  $("btnRefreshNotifs").addEventListener("click", loadNotifications);
-
-  async function loadUiTree() {
-    try {
-      const res = await api("/api/ui/tree");
-      const list = $("uiTreeList");
-      list.replaceChildren();
-      const nodes = res.nodes || [];
-      if (nodes.length === 0) {
-        const msg = document.createElement("div");
-        msg.className = "sub";
-        msg.textContent = "No interactive elements detected on the active phone screen.";
-        list.appendChild(msg);
-        return;
       }
-      nodes.forEach(node => {
-        const row = document.createElement("div");
-        row.className = "file-row";
-        const info = document.createElement("div");
-        info.style.flex = "1";
-        const t = document.createElement("div");
-        t.style.fontSize = "13px";
-        t.style.fontWeight = "600";
-        t.textContent = node.label;
-        const s = document.createElement("div");
-        s.style.fontSize = "11px";
-        s.style.color = "var(--muted)";
-        s.textContent = node.className + (node.editable ? " • Editable" : " • Clickable");
-        info.append(t, s);
-        const btn = document.createElement("button");
-        btn.className = "btn btn-hero btn-pill";
-        btn.textContent = "Tap";
-        btn.addEventListener("click", async () => {
+
+      pairBtn.addEventListener("click", performPair);
+      pinInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") performPair();
+      });
+
+      async function disconnectLocal(reason) {
+        stopPhoneAudioStream();
+        stopMirrorStream();
+        if (pollTimer) {
+          clearInterval(pollTimer);
+          pollTimer = null;
+        }
+        if (authToken) {
+          const tok = authToken;
+          authToken = null;
+          streamTicket = null;
           try {
-            await api("/api/input/node-click", {
+            await fetch("/api/auth/logout", {
+              method: "POST",
+              headers: { "Authorization": "Bearer " + tok }
+            });
+          } catch (_) {}
+        }
+        consoleView.classList.add("hidden");
+        pairView.classList.remove("hidden");
+        if (reason) {
+          pairError.textContent = reason;
+          pairError.classList.remove("hidden");
+        }
+      }
+
+      $("logoutBtn").addEventListener("click", () => disconnectLocal("Disconnected cleanly"));
+      $("topRefreshBtn").addEventListener("click", () => {
+        refreshStatus();
+        showToast("Status refreshed");
+      });
+
+      function startPolling() {
+        if (pollTimer) clearInterval(pollTimer);
+        pollTimer = setInterval(() => {
+          if (authToken) refreshStatus();
+        }, 3500);
+      }
+
+      async function refreshStatus() {
+        try {
+          const st = await apiFetch("/api/status");
+          currentStatus = st;
+          if (st.audioSampleRate) audioSampleRate = st.audioSampleRate;
+
+          $("topDevicePill").textContent = (st.deviceModel || "Phone") + " · " + st.batteryPercent + "%";
+          $("overviewModelSub").textContent = (st.deviceModel || "Phone") + " · Android " + (st.androidVersion || "") + " · " + (st.ipAddress || "");
+          $("overviewNetworkPill").textContent = st.networkType || "LAN";
+
+          $("statBattery").textContent = st.batteryPercent + "%" + (st.isCharging ? " (Chg)" : "");
+          $("statRam").textContent = st.ramUsedMb + " / " + st.ramTotalMb + " MB";
+          $("statStorage").textContent = Number(st.storageUsedGb || 0).toFixed(1) + " / " + Number(st.storageTotalGb || 0).toFixed(1) + " GB";
+          $("statTemp").textContent = Number(st.batteryTempC || 0).toFixed(1) + " °C";
+
+          const r = st.readiness || {};
+          const mirrorActive = !!r.screenMirrorActive;
+          const audioCapActive = !!r.audioForwardingActive;
+          const touchReady = !!r.accessibilityConnected;
+
+          $("topMirrorPill").textContent = mirrorActive ? "Mirror: Live" : "Mirror: Off on Phone";
+          $("statMirrorReady").textContent = mirrorActive ? "LIVE" : "OFF ON PHONE";
+          $("statAudioReady").textContent = audioCapActive ? "LIVE" : "STANDBY";
+          $("statTouchReady").textContent = touchReady ? "READY" : "OFF";
+
+          if (typeof r.mirrorRotationDegrees === "number" && r.mirrorRotationDegrees !== mirrorRotation) {
+            applyLocalRotationUI(r.mirrorRotationDegrees);
+          }
+
+          // Audio section status
+          $("audioTechSpec").textContent = "Format: " + audioSampleRate + " Hz · 16-bit PCM · " + (st.audioChannels === 2 ? "Stereo" : "Mono");
+          $("audioPhoneCaptureStat").textContent = audioCapActive
+            ? "Streaming from Phone"
+            : (r.audioForwardingSupported === false ? "Requires Android 10+" : "Start on Phone First");
+
+          const noticeBox = $("audioNoticeBox");
+          if (r.audioForwardingError) {
+            noticeBox.textContent = "Phone Audio Notice: " + r.audioForwardingError;
+            noticeBox.classList.remove("hidden");
+          } else if (!audioCapActive) {
+            noticeBox.textContent = "To hear phone sound on your laptop, open DeckLink on your phone and tap 'Start Phone Sound' (or Start Screen Mirror) in Section 4.";
+            noticeBox.classList.remove("hidden");
+          } else {
+            noticeBox.classList.add("hidden");
+          }
+
+          // Volumes
+          const v = st.volumes || {};
+          syncSlider("volMediaSlider", "volMediaVal", v.media, v.mediaMax);
+          syncSlider("volRingSlider", "volRingVal", v.ring, v.ringMax);
+          syncSlider("volNotifSlider", "volNotifVal", v.notification, v.notificationMax);
+          syncSlider("volAlarmSlider", "volAlarmVal", v.alarm, v.alarmMax);
+
+          document.querySelectorAll(".ringer-btn").forEach((b) => {
+            b.classList.toggle("active-btn", b.dataset.mode === v.ringerMode);
+          });
+
+          // Hardware buttons
+          $("torchToggleBtn").textContent = r.torchEnabled ? "Flashlight: ON" : "Flashlight: OFF";
+          $("torchToggleBtn").classList.toggle("active-btn", !!r.torchEnabled);
+          $("ringToggleBtn").textContent = r.finderRingActive ? "Find Phone Ring: RINGING" : "Find Phone Ring: OFF";
+          $("ringToggleBtn").classList.toggle("active-btn", !!r.finderRingActive);
+
+          $("notifBridgePill").textContent = r.notificationBridgeConnected ? "Bridge: Active" : "Bridge: Off on Phone";
+
+          // Auto-start mirror if user is currently on Mirror section and stream became active
+          if (mirrorActive && $("sec-mirror").classList.contains("active") && !mirrorRunning) {
+            startMirrorStream();
+          }
+        } catch (_) {}
+      }
+
+      function syncSlider(sliderId, labelId, val, max) {
+        const s = $(sliderId);
+        const l = $(labelId);
+        if (!s || !l) return;
+        const safeMax = Math.max(1, Number(max || 15));
+        const safeVal = Math.max(0, Math.min(safeMax, Number(val || 0)));
+        s.max = String(safeMax);
+        if (document.activeElement !== s) {
+          s.value = String(safeVal);
+        }
+        l.textContent = safeVal + " / " + safeMax;
+      }
+
+      // ================================================================
+      // SECTION 01: SEARCH EVERYWHERE
+      // ================================================================
+      function renderGlobalSearch() {
+        const q = $("globalSearchInput").value.trim().toLowerCase();
+        const container = $("globalSearchResults");
+        container.textContent = "";
+        if (!q) {
+          const hint = document.createElement("div");
+          hint.className = "list-row";
+          hint.textContent = "Type any app name or file name to search across your phone immediately.";
+          container.appendChild(hint);
+          return;
+        }
+        const matchedApps = cachedApps.filter((a) =>
+          (a.label || "").toLowerCase().includes(q) || (a.packageName || "").toLowerCase().includes(q)
+        ).slice(0, 6);
+        const matchedFiles = cachedFiles.filter((f) =>
+          (f.name || "").toLowerCase().includes(q)
+        ).slice(0, 6);
+
+        if (matchedApps.length === 0 && matchedFiles.length === 0) {
+          const empty = document.createElement("div");
+          empty.className = "list-row";
+          empty.textContent = "No matching apps or files found for \"" + q + "\".";
+          container.appendChild(empty);
+          return;
+        }
+
+        matchedApps.forEach((app) => {
+          const row = document.createElement("div");
+          row.className = "list-row";
+          const info = document.createElement("div");
+          info.className = "list-row-info";
+          const title = document.createElement("div");
+          title.className = "list-row-title";
+          title.textContent = "[App] " + app.label;
+          const sub = document.createElement("div");
+          sub.className = "list-row-sub mono";
+          sub.textContent = app.packageName;
+          info.appendChild(title);
+          info.appendChild(sub);
+
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.textContent = "Open App";
+          btn.addEventListener("click", () => launchPhoneApp(app.packageName, app.label));
+
+          row.appendChild(info);
+          row.appendChild(btn);
+          container.appendChild(row);
+        });
+
+        matchedFiles.forEach((file) => {
+          const row = document.createElement("div");
+          row.className = "list-row";
+          const info = document.createElement("div");
+          info.className = "list-row-info";
+          const title = document.createElement("div");
+          title.className = "list-row-title";
+          title.textContent = "[File] " + file.name;
+          const sub = document.createElement("div");
+          sub.className = "list-row-sub";
+          sub.textContent = formatBytes(file.sizeBytes);
+          info.appendChild(title);
+          info.appendChild(sub);
+
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.textContent = "Download";
+          btn.addEventListener("click", () => downloadVaultFile(file.name));
+
+          row.appendChild(info);
+          row.appendChild(btn);
+          container.appendChild(row);
+        });
+      }
+
+      $("globalSearchInput").addEventListener("input", renderGlobalSearch);
+      $("globalSearchClearBtn").addEventListener("click", () => {
+        $("globalSearchInput").value = "";
+        renderGlobalSearch();
+      });
+      $("refreshSearchIndexBtn").addEventListener("click", async () => {
+        await Promise.all([loadApps(), loadFiles()]);
+        renderGlobalSearch();
+        showToast("Search index synced");
+      });
+
+      // ================================================================
+      // SECTION 02: SCREEN MIRROR & ROTATION (CANVAS + ROTATED TOUCH)
+      // ================================================================
+      function angleLabel(deg) {
+        if (deg === 90) return "90° (Landscape Right)";
+        if (deg === 180) return "180° (Upside Down)";
+        if (deg === 270) return "270° (Landscape Left)";
+        return "0° (Portrait)";
+      }
+
+      function applyLocalRotationUI(deg) {
+        mirrorRotation = ((deg % 360) + 360) % 360;
+        $("mirrorAngleBadge").textContent = "Angle: " + angleLabel(mirrorRotation);
+        $("statRotationReady").textContent = mirrorRotation + "°";
+        document.querySelectorAll(".rot-angle-btn").forEach((btn) => {
+          btn.classList.toggle("active-btn", Number(btn.dataset.angle) === mirrorRotation);
+        });
+      }
+
+      async function setRotationAngle(deg) {
+        const normalized = ((deg % 360) + 360) % 360;
+        applyLocalRotationUI(normalized);
+        try {
+          await apiFetch("/api/screen/rotate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ degrees: normalized })
+          });
+          showToast("Screen rotated to " + normalized + "°");
+        } catch (e) {
+          showToast("Rotation synced locally (" + normalized + "°)");
+        }
+      }
+
+      document.querySelectorAll(".rot-angle-btn").forEach((btn) => {
+        btn.addEventListener("click", () => setRotationAngle(Number(btn.dataset.angle)));
+      });
+      $("rotLeftBtn").addEventListener("click", () => setRotationAngle(mirrorRotation - 90));
+      $("rotRightBtn").addEventListener("click", () => setRotationAngle(mirrorRotation + 90));
+      $("rotResetBtn").addEventListener("click", () => setRotationAngle(0));
+
+      $("mirrorFullscreenBtn").addEventListener("click", () => {
+        const wrap = $("mirrorStageWrap");
+        if (!document.fullscreenElement) {
+          wrap.requestFullscreen().catch(() => {});
+        } else {
+          document.exitFullscreen().catch(() => {});
+        }
+      });
+
+      function startMirrorStream() {
+        if (!streamTicket) return;
+        mirrorRunning = true;
+        mjpegSource.src = "/api/stream/mjpeg?ticket=" + encodeURIComponent(streamTicket) + "&t=" + Date.now();
+        $("mirrorStreamStatus").textContent = "Connecting to live phone screen...";
+      }
+
+      function stopMirrorStream() {
+        mirrorRunning = false;
+        mjpegSource.removeAttribute("src");
+        $("mirrorStreamStatus").textContent = "Stream paused";
+      }
+
+      $("mirrorStartBtn").addEventListener("click", startMirrorStream);
+      $("mirrorStopBtn").addEventListener("click", stopMirrorStream);
+      $("mirrorSnapshotBtn").addEventListener("click", () => {
+        if (!streamTicket) return;
+        const a = document.createElement("a");
+        a.href = "/api/screen/frame?ticket=" + encodeURIComponent(streamTicket) + "&t=" + Date.now();
+        a.download = "decklink_phone_frame.jpg";
+        a.click();
+        showToast("Snapshot downloaded");
+      });
+
+      function startMirrorLoop() {
+        if (mirrorRafId) cancelAnimationFrame(mirrorRafId);
+        function renderFrame() {
+          drawMirrorCanvas();
+          mirrorRafId = requestAnimationFrame(renderFrame);
+        }
+        mirrorRafId = requestAnimationFrame(renderFrame);
+      }
+
+      function drawMirrorCanvas() {
+        const img = mjpegSource;
+        const hasFrame = mirrorRunning && img.complete && img.naturalWidth > 0 && img.naturalHeight > 0;
+
+        if (!hasFrame) {
+          const isLandscape = (mirrorRotation === 90 || mirrorRotation === 270);
+          const targetW = isLandscape ? 640 : 340;
+          const targetH = isLandscape ? 360 : 580;
+          if (mirrorCanvas.width !== targetW || mirrorCanvas.height !== targetH) {
+            mirrorCanvas.width = targetW;
+            mirrorCanvas.height = targetH;
+          }
+          mirrorCtx.fillStyle = "#FFFFFF";
+          mirrorCtx.fillRect(0, 0, mirrorCanvas.width, mirrorCanvas.height);
+          mirrorCtx.fillStyle = "#000000";
+          mirrorCtx.font = "bold 16px sans-serif";
+          mirrorCtx.textAlign = "center";
+          mirrorCtx.fillText("Phone Screen Mirror Standby", mirrorCanvas.width / 2, mirrorCanvas.height / 2 - 12);
+          mirrorCtx.font = "13px sans-serif";
+          mirrorCtx.fillText("Start Screen Mirror on your phone (Rotation: " + mirrorRotation + "°)", mirrorCanvas.width / 2, mirrorCanvas.height / 2 + 14);
+          return;
+        }
+
+        $("mirrorStreamStatus").textContent = "Live (" + img.naturalWidth + "×" + img.naturalHeight + ") · Rotated " + mirrorRotation + "°";
+
+        const nw = img.naturalWidth;
+        const nh = img.naturalHeight;
+        const rotated = (mirrorRotation === 90 || mirrorRotation === 270);
+        const targetW = rotated ? nh : nw;
+        const targetH = rotated ? nw : nh;
+
+        if (mirrorCanvas.width !== targetW || mirrorCanvas.height !== targetH) {
+          mirrorCanvas.width = targetW;
+          mirrorCanvas.height = targetH;
+        }
+
+        mirrorCtx.save();
+        mirrorCtx.fillStyle = "#FFFFFF";
+        mirrorCtx.fillRect(0, 0, targetW, targetH);
+        mirrorCtx.translate(targetW / 2, targetH / 2);
+        mirrorCtx.rotate((mirrorRotation * Math.PI) / 180);
+        mirrorCtx.drawImage(img, -nw / 2, -nh / 2, nw, nh);
+        mirrorCtx.restore();
+      }
+
+      // Inverse rotation mapping from viewer canvas coords (u, v) in [0..1] to phone native coords (px, py) in [0..1]
+      function mapViewerToPhone(u, v) {
+        const clamp = (n) => Math.max(0, Math.min(1, n));
+        const cu = clamp(u);
+        const cv = clamp(v);
+        if (mirrorRotation === 90) {
+          return { x: cv, y: 1 - cu };
+        }
+        if (mirrorRotation === 180) {
+          return { x: 1 - cu, y: 1 - cv };
+        }
+        if (mirrorRotation === 270) {
+          return { x: 1 - cv, y: cu };
+        }
+        return { x: cu, y: cv };
+      }
+
+      function getCanvasNormalizedPoint(evt) {
+        const rect = mirrorCanvas.getBoundingClientRect();
+        const u = (evt.clientX - rect.left) / Math.max(1, rect.width);
+        const v = (evt.clientY - rect.top) / Math.max(1, rect.height);
+        return mapViewerToPhone(u, v);
+      }
+
+      mirrorCanvas.addEventListener("pointerdown", (e) => {
+        if (!authToken) return;
+        mirrorCanvas.setPointerCapture(e.pointerId);
+        const pt = getCanvasNormalizedPoint(e);
+        pointerDownInfo = { x: pt.x, y: pt.y, time: performance.now() };
+      });
+
+      mirrorCanvas.addEventListener("pointerup", async (e) => {
+        if (!pointerDownInfo || !authToken) return;
+        const start = pointerDownInfo;
+        pointerDownInfo = null;
+        const end = getCanvasNormalizedPoint(e);
+        const elapsed = Math.max(40, Math.round(performance.now() - start.time));
+        const dist = Math.hypot(end.x - start.x, end.y - start.y);
+
+        try {
+          if (dist < 0.03) {
+            const tapDuration = elapsed >= 450 ? Math.min(elapsed, 1200) : 70;
+            await apiFetch("/api/input/tap", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ index: node.index })
+              body: JSON.stringify({ x: end.x, y: end.y, durationMs: tapDuration })
             });
-            showToast("Tapped: " + node.label);
-            setTimeout(loadUiTree, 500);
-          } catch (err) { showToast(err.message); }
-        });
-        row.append(info, btn);
-        list.appendChild(row);
+          } else {
+            await apiFetch("/api/input/swipe", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                x1: start.x,
+                y1: start.y,
+                x2: end.x,
+                y2: end.y,
+                durationMs: Math.max(120, Math.min(900, elapsed))
+              })
+            });
+          }
+        } catch (err) {
+          showToast(err.message);
+        }
       });
-    } catch (err) { showToast(err.message); }
-  }
-  $("btnRefreshUiTree").addEventListener("click", loadUiTree);
 
-  function formatSize(bytes) {
-    if (bytes < 1024) return bytes + " B";
-    if (bytes < 1048576) return (bytes / 1024).toFixed(1) + " KB";
-    return (bytes / 1048576).toFixed(2) + " MB";
-  }
+      mirrorCanvas.addEventListener("pointercancel", () => {
+        pointerDownInfo = null;
+      });
 
-  initPing();
-})();
-</script>
+      // Global Android System Keys
+      document.querySelectorAll(".sys-key-btn").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          try {
+            await apiFetch("/api/input/global", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ action: btn.dataset.key })
+            });
+            showToast("Sent key: " + btn.textContent);
+          } catch (e) {
+            showToast(e.message);
+          }
+        });
+      });
+
+      // Remote Keyboard Input
+      async function sendRemoteText(append) {
+        const text = $("remoteTypeInput").value;
+        if (!text) return;
+        try {
+          await apiFetch("/api/input/text", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text: text, append: append })
+          });
+          $("remoteTypeInput").value = "";
+          showToast(append ? "Typed on phone" : "Replaced text on phone");
+        } catch (e) {
+          showToast(e.message);
+        }
+      }
+
+      $("remoteTypeSendBtn").addEventListener("click", () => sendRemoteText(true));
+      $("remoteTypeReplaceBtn").addEventListener("click", () => sendRemoteText(false));
+      $("remoteTypeClearBtn").addEventListener("click", async () => {
+        try {
+          await apiFetch("/api/input/text", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ clear: true })
+          });
+          showToast("Cleared focused field");
+        } catch (e) {
+          showToast(e.message);
+        }
+      });
+      $("remoteTypeInput").addEventListener("keydown", (e) => {
+        if (e.key === "Enter") sendRemoteText(true);
+      });
+
+      // ================================================================
+      // SECTION 03: LIVE PHONE SOUND TO LAPTOP (PCM STREAM -> WEB AUDIO)
+      // ================================================================
+      function updateAudioButtonsUI() {
+        $("startPhoneAudioBtn").disabled = audioActive;
+        $("stopPhoneAudioBtn").disabled = !audioActive;
+        $("audioStatePill").textContent = audioActive ? (audioMuted ? "Stream: Live (Muted)" : "Stream: Live") : "Stream: Stopped";
+        $("topAudioPill").textContent = audioActive ? (audioMuted ? "Laptop Sound: Muted" : "Laptop Sound: LIVE") : "Laptop Sound: Off";
+        $("topQuickAudioBtn").textContent = audioActive ? "Stop Phone Sound" : "Start Phone Sound";
+        $("topQuickAudioBtn").classList.toggle("active-btn", audioActive);
+        $("mirrorQuickAudioBtn").textContent = audioActive ? "Phone Sound: LIVE (Click to Stop)" : "Phone Sound: Off (Click to Listen)";
+        $("mirrorQuickAudioBtn").classList.toggle("active-btn", audioActive);
+        $("audioLaptopPlayStat").textContent = audioActive ? (audioMuted ? "Muted" : "Playing on Laptop") : "Idle";
+        $("muteLaptopAudioBtn").textContent = audioMuted ? "Unmute Laptop" : "Mute Laptop";
+        $("muteLaptopAudioBtn").classList.toggle("active-btn", audioMuted);
+      }
+
+      function applyGainValue() {
+        $("laptopGainLabel").textContent = audioMuted ? "0% (Muted)" : (audioGainPercent + "%");
+        if (audioGainNode && audioCtx) {
+          const target = audioMuted ? 0 : (audioGainPercent / 100);
+          audioGainNode.gain.setTargetAtTime(target, audioCtx.currentTime, 0.02);
+        }
+      }
+
+      async function startPhoneAudioStream() {
+        if (audioActive || !streamTicket) return;
+        const noticeBox = $("audioNoticeBox");
+        noticeBox.classList.add("hidden");
+
+        try {
+          const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
+          audioCtx = new AudioContextCtor({ sampleRate: audioSampleRate });
+          if (audioCtx.state === "suspended") {
+            await audioCtx.resume();
+          }
+          audioGainNode = audioCtx.createGain();
+          audioAnalyser = audioCtx.createAnalyser();
+          audioAnalyser.fftSize = 512;
+          audioGainNode.connect(audioAnalyser);
+          audioAnalyser.connect(audioCtx.destination);
+          applyGainValue();
+
+          audioAbortController = new AbortController();
+          const url = "/api/stream/audio?ticket=" + encodeURIComponent(streamTicket) + "&t=" + Date.now();
+          const res = await fetch(url, { signal: audioAbortController.signal });
+
+          if (!res.ok) {
+            let errText = "Unable to start phone audio stream (" + res.status + ")";
+            try {
+              const j = await res.json();
+              if (j && j.error) errText = j.error;
+            } catch (_) {}
+            throw new Error(errText);
+          }
+
+          const srHeader = Number(res.headers.get("X-Audio-Sample-Rate"));
+          if (srHeader && srHeader >= 8000) audioSampleRate = srHeader;
+
+          audioActive = true;
+          audioNextPlayTime = audioCtx.currentTime + 0.06;
+          updateAudioButtonsUI();
+          startAudioWaveVisualizer();
+          showToast("Phone sound is now playing on your laptop");
+
+          const reader = res.body.getReader();
+          let carryByte = null;
+
+          while (audioActive) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            if (!value || value.length === 0) continue;
+
+            let bytes = value;
+            if (carryByte !== null) {
+              const merged = new Uint8Array(value.length + 1);
+              merged[0] = carryByte;
+              merged.set(value, 1);
+              bytes = merged;
+              carryByte = null;
+            }
+
+            if (bytes.length % 2 === 1) {
+              carryByte = bytes[bytes.length - 1];
+              bytes = bytes.subarray(0, bytes.length - 1);
+            }
+
+            const sampleCount = bytes.length / 2;
+            if (sampleCount <= 0) continue;
+
+            const audioBuffer = audioCtx.createBuffer(1, sampleCount, audioSampleRate);
+            const ch = audioBuffer.getChannelData(0);
+            const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+            for (let i = 0; i < sampleCount; i++) {
+              ch[i] = view.getInt16(i * 2, true) / 32768.0;
+            }
+
+            const now = audioCtx.currentTime;
+            if (audioNextPlayTime < now + 0.015) {
+              audioNextPlayTime = now + 0.04;
+            } else if (audioNextPlayTime - now > 0.25) {
+              // Drop drift to keep live lip-sync tight
+              audioNextPlayTime = now + 0.05;
+            }
+
+            const src = audioCtx.createBufferSource();
+            src.buffer = audioBuffer;
+            src.connect(audioGainNode);
+            src.start(audioNextPlayTime);
+            audioNextPlayTime += audioBuffer.duration;
+            lastAudioLatencyMs = Math.max(0, Math.round((audioNextPlayTime - now) * 1000));
+            $("audioLatencyStat").textContent = lastAudioLatencyMs + " ms";
+          }
+
+          if (audioActive) {
+            stopPhoneAudioStream("Phone audio stream ended");
+          }
+        } catch (err) {
+          if (err && err.name === "AbortError") return;
+          stopPhoneAudioStream();
+          noticeBox.textContent = err.message || "Could not start phone audio stream.";
+          noticeBox.classList.remove("hidden");
+          showToast(err.message || "Audio stream unavailable");
+        }
+      }
+
+      function stopPhoneAudioStream(reason) {
+        audioActive = false;
+        if (audioAbortController) {
+          try { audioAbortController.abort(); } catch (_) {}
+          audioAbortController = null;
+        }
+        if (audioCtx) {
+          try { audioCtx.close(); } catch (_) {}
+          audioCtx = null;
+          audioGainNode = null;
+          audioAnalyser = null;
+        }
+        if (audioWaveRafId) {
+          cancelAnimationFrame(audioWaveRafId);
+          audioWaveRafId = null;
+        }
+        $("audioLatencyStat").textContent = "-- ms";
+        updateAudioButtonsUI();
+        drawIdleWave();
+        if (reason) showToast(reason);
+      }
+
+      function drawIdleWave() {
+        const w = audioWaveCanvas.width;
+        const h = audioWaveCanvas.height;
+        audioWaveCtx.fillStyle = "#FFFFFF";
+        audioWaveCtx.fillRect(0, 0, w, h);
+        audioWaveCtx.strokeStyle = "#000000";
+        audioWaveCtx.lineWidth = 2;
+        audioWaveCtx.beginPath();
+        audioWaveCtx.moveTo(0, h / 2);
+        audioWaveCtx.lineTo(w, h / 2);
+        audioWaveCtx.stroke();
+        audioWaveCtx.fillStyle = "#000000";
+        audioWaveCtx.font = "bold 12px monospace";
+        audioWaveCtx.textAlign = "left";
+        audioWaveCtx.fillText("WAVEFORM IDLE — CLICK 'START PHONE SOUND ON LAPTOP'", 14, 22);
+      }
+
+      function startAudioWaveVisualizer() {
+        if (audioWaveRafId) cancelAnimationFrame(audioWaveRafId);
+        const buf = new Uint8Array(audioAnalyser ? audioAnalyser.fftSize : 256);
+
+        function loop() {
+          if (!audioActive || !audioAnalyser) {
+            drawIdleWave();
+            return;
+          }
+          audioAnalyser.getByteTimeDomainData(buf);
+          const w = audioWaveCanvas.width;
+          const h = audioWaveCanvas.height;
+          audioWaveCtx.fillStyle = "#FFFFFF";
+          audioWaveCtx.fillRect(0, 0, w, h);
+
+          // Center guide
+          audioWaveCtx.strokeStyle = "#000000";
+          audioWaveCtx.lineWidth = 1;
+          audioWaveCtx.setLineDash([4, 4]);
+          audioWaveCtx.beginPath();
+          audioWaveCtx.moveTo(0, h / 2);
+          audioWaveCtx.lineTo(w, h / 2);
+          audioWaveCtx.stroke();
+          audioWaveCtx.setLineDash([]);
+
+          // Live black waveform stroke
+          audioWaveCtx.strokeStyle = "#000000";
+          audioWaveCtx.lineWidth = 2.5;
+          audioWaveCtx.beginPath();
+          const slice = w / buf.length;
+          let x = 0;
+          for (let i = 0; i < buf.length; i++) {
+            const v = buf[i] / 128.0;
+            const y = (v * h) / 2;
+            if (i === 0) audioWaveCtx.moveTo(x, y);
+            else audioWaveCtx.lineTo(x, y);
+            x += slice;
+          }
+          audioWaveCtx.stroke();
+
+          audioWaveCtx.fillStyle = "#000000";
+          audioWaveCtx.font = "bold 12px monospace";
+          audioWaveCtx.textAlign = "left";
+          audioWaveCtx.fillText("LIVE PHONE AUDIO · " + audioSampleRate + " HZ PCM", 14, 22);
+
+          audioWaveRafId = requestAnimationFrame(loop);
+        }
+        audioWaveRafId = requestAnimationFrame(loop);
+      }
+
+      $("startPhoneAudioBtn").addEventListener("click", startPhoneAudioStream);
+      $("stopPhoneAudioBtn").addEventListener("click", () => stopPhoneAudioStream("Phone sound stopped"));
+      $("topQuickAudioBtn").addEventListener("click", () => {
+        if (audioActive) stopPhoneAudioStream("Phone sound stopped");
+        else startPhoneAudioStream();
+      });
+      $("mirrorQuickAudioBtn").addEventListener("click", () => {
+        if (audioActive) stopPhoneAudioStream("Phone sound stopped");
+        else startPhoneAudioStream();
+      });
+      $("muteLaptopAudioBtn").addEventListener("click", () => {
+        audioMuted = !audioMuted;
+        applyGainValue();
+        updateAudioButtonsUI();
+      });
+      $("laptopGainSlider").addEventListener("input", (e) => {
+        audioGainPercent = Number(e.target.value);
+        if (audioGainPercent > 0 && audioMuted) audioMuted = false;
+        applyGainValue();
+        updateAudioButtonsUI();
+      });
+
+      // Phone Volume & Ringer & Media Controls
+      function bindVolumeSlider(sliderId, streamName, labelId) {
+        const s = $(sliderId);
+        s.addEventListener("input", () => {
+          $(labelId).textContent = s.value + " / " + s.max;
+        });
+        s.addEventListener("change", async () => {
+          try {
+            await apiFetch("/api/audio/volume", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ stream: streamName, level: Number(s.value) })
+            });
+          } catch (e) {
+            showToast(e.message);
+          }
+        });
+      }
+      bindVolumeSlider("volMediaSlider", "media", "volMediaVal");
+      bindVolumeSlider("volRingSlider", "ring", "volRingVal");
+      bindVolumeSlider("volNotifSlider", "notification", "volNotifVal");
+      bindVolumeSlider("volAlarmSlider", "alarm", "volAlarmVal");
+
+      document.querySelectorAll(".ringer-btn").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          try {
+            await apiFetch("/api/audio/ringer", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ mode: btn.dataset.mode })
+            });
+            refreshStatus();
+            showToast("Phone ringer: " + btn.dataset.mode.toUpperCase());
+          } catch (e) {
+            showToast(e.message);
+          }
+        });
+      });
+
+      document.querySelectorAll(".media-btn").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          try {
+            await apiFetch("/api/media/key", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ command: btn.dataset.cmd })
+            });
+            showToast("Media: " + btn.textContent);
+          } catch (e) {
+            showToast(e.message);
+          }
+        });
+      });
+
+      // ================================================================
+      // SECTION 04: APPS LAUNCHER
+      // ================================================================
+      async function loadApps() {
+        try {
+          const data = await apiFetch("/api/apps");
+          cachedApps = data.apps || [];
+          renderApps();
+          renderGlobalSearch();
+        } catch (e) {
+          showToast(e.message);
+        }
+      }
+
+      function renderApps() {
+        const q = $("appFilterInput").value.trim().toLowerCase();
+        const filtered = cachedApps.filter((a) =>
+          !q || (a.label || "").toLowerCase().includes(q) || (a.packageName || "").toLowerCase().includes(q)
+        );
+        $("appsCountPill").textContent = filtered.length + " apps";
+        const grid = $("appsGrid");
+        grid.textContent = "";
+        if (filtered.length === 0) {
+          const msg = document.createElement("div");
+          msg.textContent = "No matching apps found.";
+          grid.appendChild(msg);
+          return;
+        }
+        filtered.forEach((app) => {
+          const card = document.createElement("div");
+          card.className = "app-card";
+          const txt = document.createElement("div");
+          txt.className = "app-card-text";
+          const name = document.createElement("div");
+          name.className = "app-card-name";
+          name.textContent = app.label;
+          const pkg = document.createElement("div");
+          pkg.className = "app-card-pkg mono";
+          pkg.textContent = app.packageName;
+          txt.appendChild(name);
+          txt.appendChild(pkg);
+
+          const openBtn = document.createElement("button");
+          openBtn.type = "button";
+          openBtn.textContent = "Open";
+          openBtn.addEventListener("click", () => launchPhoneApp(app.packageName, app.label));
+
+          card.appendChild(txt);
+          card.appendChild(openBtn);
+          grid.appendChild(card);
+        });
+      }
+
+      async function launchPhoneApp(pkg, label) {
+        try {
+          await apiFetch("/api/apps/launch", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ packageName: pkg })
+          });
+          showToast("Launched " + label + " on phone");
+        } catch (e) {
+          showToast(e.message);
+        }
+      }
+
+      $("appFilterInput").addEventListener("input", renderApps);
+      $("reloadAppsBtn").addEventListener("click", loadApps);
+
+      // ================================================================
+      // SECTION 05: FILE TRANSFER VAULT
+      // ================================================================
+      function formatBytes(b) {
+        const n = Number(b || 0);
+        if (n < 1024) return n + " B";
+        if (n < 1024 * 1024) return (n / 1024).toFixed(1) + " KB";
+        return (n / (1024 * 1024)).toFixed(2) + " MB";
+      }
+
+      async function loadFiles() {
+        try {
+          const data = await apiFetch("/api/files");
+          cachedFiles = data.files || [];
+          renderFiles();
+          renderGlobalSearch();
+        } catch (e) {
+          showToast(e.message);
+        }
+      }
+
+      function renderFiles() {
+        $("filesCountPill").textContent = cachedFiles.length + " files";
+        const list = $("filesList");
+        list.textContent = "";
+        if (cachedFiles.length === 0) {
+          const empty = document.createElement("div");
+          empty.className = "list-row";
+          empty.textContent = "Vault is empty. Upload a file from your laptop or add one from your phone.";
+          list.appendChild(empty);
+          return;
+        }
+        cachedFiles.forEach((f) => {
+          const row = document.createElement("div");
+          row.className = "list-row";
+
+          const info = document.createElement("div");
+          info.className = "list-row-info";
+          const title = document.createElement("div");
+          title.className = "list-row-title";
+          title.textContent = f.name;
+          const sub = document.createElement("div");
+          sub.className = "list-row-sub";
+          sub.textContent = formatBytes(f.sizeBytes) + " · " + (f.mimeType || "file");
+          info.appendChild(title);
+          info.appendChild(sub);
+
+          const actions = document.createElement("div");
+          actions.className = "btn-row";
+
+          const dlBtn = document.createElement("button");
+          dlBtn.type = "button";
+          dlBtn.textContent = "Download";
+          dlBtn.addEventListener("click", () => downloadVaultFile(f.name));
+
+          const delBtn = document.createElement("button");
+          delBtn.type = "button";
+          delBtn.textContent = "Delete";
+          delBtn.addEventListener("click", async () => {
+            try {
+              await apiFetch("/api/files?name=" + encodeURIComponent(f.name), { method: "DELETE" });
+              showToast("Deleted " + f.name);
+              loadFiles();
+            } catch (e) {
+              showToast(e.message);
+            }
+          });
+
+          actions.appendChild(dlBtn);
+          actions.appendChild(delBtn);
+          row.appendChild(info);
+          row.appendChild(actions);
+          list.appendChild(row);
+        });
+      }
+
+      function downloadVaultFile(name) {
+        if (!streamTicket) return;
+        const a = document.createElement("a");
+        a.href = "/api/files/download?name=" + encodeURIComponent(name) + "&ticket=" + encodeURIComponent(streamTicket);
+        a.download = name;
+        a.click();
+      }
+
+      $("fileUploadBtn").addEventListener("click", async () => {
+        const input = $("fileUploadInput");
+        if (!input.files || input.files.length === 0) {
+          showToast("Choose a file first");
+          return;
+        }
+        const file = input.files[0];
+        if (file.size > 25 * 1024 * 1024) {
+          showToast("File exceeds 25 MB limit");
+          return;
+        }
+        $("fileUploadBtn").disabled = true;
+        try {
+          const buf = await file.arrayBuffer();
+          await apiFetch("/api/files/upload?name=" + encodeURIComponent(file.name), {
+            method: "POST",
+            headers: { "Content-Type": "application/octet-stream" },
+            body: buf
+          });
+          input.value = "";
+          showToast("Uploaded " + file.name + " to phone");
+          loadFiles();
+        } catch (e) {
+          showToast(e.message);
+        } finally {
+          $("fileUploadBtn").disabled = false;
+        }
+      });
+      $("reloadFilesBtn").addEventListener("click", loadFiles);
+
+      // ================================================================
+      // SECTION 06: CLIPBOARD SYNC
+      // ================================================================
+      $("clipPullBtn").addEventListener("click", async () => {
+        try {
+          const data = await apiFetch("/api/clipboard");
+          $("clipTextarea").value = data.text || "";
+          showToast("Pulled phone clipboard");
+        } catch (e) {
+          showToast(e.message);
+        }
+      });
+
+      $("clipPushBtn").addEventListener("click", async () => {
+        try {
+          await apiFetch("/api/clipboard", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text: $("clipTextarea").value })
+          });
+          showToast("Sent clipboard to phone");
+        } catch (e) {
+          showToast(e.message);
+        }
+      });
+
+      $("clipCopyLocalBtn").addEventListener("click", async () => {
+        try {
+          await navigator.clipboard.writeText($("clipTextarea").value);
+          showToast("Copied to laptop clipboard");
+        } catch (_) {
+          showToast("Browser blocked clipboard write");
+        }
+      });
+
+      $("clipClearBtn").addEventListener("click", () => {
+        $("clipTextarea").value = "";
+      });
+
+      // ================================================================
+      // SECTION 07: NOTIFICATIONS BRIDGE
+      // ================================================================
+      async function loadNotifications() {
+        try {
+          const data = await apiFetch("/api/notifications");
+          $("notifBridgePill").textContent = data.connected ? "Bridge: Active" : "Bridge: Off on Phone";
+          const list = $("notifsList");
+          list.textContent = "";
+          const items = data.notifications || [];
+          if (items.length === 0) {
+            const empty = document.createElement("div");
+            empty.className = "list-row";
+            empty.textContent = data.connected
+              ? "No active notifications on phone right now."
+              : "Enable Notification Access for DeckLink on your phone to mirror notifications.";
+            list.appendChild(empty);
+            return;
+          }
+          items.forEach((n) => {
+            const row = document.createElement("div");
+            row.className = "list-row";
+
+            const info = document.createElement("div");
+            info.className = "list-row-info";
+            const title = document.createElement("div");
+            title.className = "list-row-title";
+            title.textContent = "[" + (n.appName || "App") + "] " + (n.title || "Notification");
+            const sub = document.createElement("div");
+            sub.className = "list-row-sub";
+            sub.textContent = n.text || "";
+            info.appendChild(title);
+            info.appendChild(sub);
+
+            row.appendChild(info);
+
+            if (n.isClearable) {
+              const btn = document.createElement("button");
+              btn.type = "button";
+              btn.textContent = "Dismiss";
+              btn.addEventListener("click", async () => {
+                try {
+                  await apiFetch("/api/notifications/dismiss", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ key: n.key })
+                  });
+                  loadNotifications();
+                } catch (e) {
+                  showToast(e.message);
+                }
+              });
+              row.appendChild(btn);
+            }
+            list.appendChild(row);
+          });
+        } catch (e) {
+          showToast(e.message);
+        }
+      }
+      $("reloadNotifsBtn").addEventListener("click", loadNotifications);
+
+      // ================================================================
+      // SECTION 08: HARDWARE & MACROS
+      // ================================================================
+      $("torchToggleBtn").addEventListener("click", async () => {
+        const next = !(currentStatus && currentStatus.readiness && currentStatus.readiness.torchEnabled);
+        try {
+          await apiFetch("/api/device/torch", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ enabled: next })
+          });
+          refreshStatus();
+          showToast(next ? "Flashlight ON" : "Flashlight OFF");
+        } catch (e) {
+          showToast(e.message);
+        }
+      });
+
+      $("ringToggleBtn").addEventListener("click", async () => {
+        const next = !(currentStatus && currentStatus.readiness && currentStatus.readiness.finderRingActive);
+        try {
+          await apiFetch("/api/device/ring", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ active: next })
+          });
+          refreshStatus();
+          showToast(next ? "Ringing phone..." : "Stopped phone ring");
+        } catch (e) {
+          showToast(e.message);
+        }
+      });
+
+      $("vibratePingBtn").addEventListener("click", async () => {
+        try {
+          await apiFetch("/api/device/vibrate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ durationMs: 300 })
+          });
+          showToast("Vibrated phone");
+        } catch (e) {
+          showToast(e.message);
+        }
+      });
+
+      $("openUrlBtn").addEventListener("click", async () => {
+        const url = $("openUrlInput").value.trim();
+        if (!url) return;
+        try {
+          await apiFetch("/api/device/open-url", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ url: url })
+          });
+          $("openUrlInput").value = "";
+          showToast("Opened link on phone");
+        } catch (e) {
+          showToast(e.message);
+        }
+      });
+
+      async function loadMacros() {
+        try {
+          const data = await apiFetch("/api/macros");
+          const list = $("macrosList");
+          list.textContent = "";
+          (data.macros || []).forEach((m) => {
+            const row = document.createElement("div");
+            row.className = "list-row";
+            const info = document.createElement("div");
+            info.className = "list-row-info";
+            const title = document.createElement("div");
+            title.className = "list-row-title";
+            title.textContent = m.title;
+            const sub = document.createElement("div");
+            sub.className = "list-row-sub";
+            sub.textContent = m.subtitle + " — " + m.steps;
+            info.appendChild(title);
+            info.appendChild(sub);
+
+            const runBtn = document.createElement("button");
+            runBtn.type = "button";
+            runBtn.textContent = "Run Macro";
+            runBtn.addEventListener("click", async () => {
+              try {
+                const res = await apiFetch("/api/macros/run", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ id: m.id })
+                });
+                showToast(res.message || "Macro executed");
+                refreshStatus();
+              } catch (e) {
+                showToast(e.message);
+              }
+            });
+
+            row.appendChild(info);
+            row.appendChild(runBtn);
+            list.appendChild(row);
+          });
+        } catch (e) {
+          showToast(e.message);
+        }
+      }
+      $("reloadMacrosBtn").addEventListener("click", loadMacros);
+
+      // ================================================================
+      // SECTION 09: UI INSPECTOR
+      // ================================================================
+      $("scanUiTreeBtn").addEventListener("click", async () => {
+        try {
+          const data = await apiFetch("/api/ui/tree");
+          const list = $("uiNodesList");
+          list.textContent = "";
+          const nodes = data.nodes || [];
+          if (nodes.length === 0) {
+            const empty = document.createElement("div");
+            empty.className = "list-row";
+            empty.textContent = "No interactive elements detected on current phone screen.";
+            list.appendChild(empty);
+            return;
+          }
+          nodes.forEach((n) => {
+            const row = document.createElement("div");
+            row.className = "list-row";
+            const info = document.createElement("div");
+            info.className = "list-row-info";
+            const title = document.createElement("div");
+            title.className = "list-row-title";
+            title.textContent = "#" + n.index + " " + n.label;
+            const sub = document.createElement("div");
+            sub.className = "list-row-sub mono";
+            sub.textContent = n.className + " · (" + Number(n.x || 0).toFixed(2) + ", " + Number(n.y || 0).toFixed(2) + ")";
+            info.appendChild(title);
+            info.appendChild(sub);
+
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.textContent = "Trigger Click";
+            btn.addEventListener("click", async () => {
+              try {
+                await apiFetch("/api/input/node-click", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ index: n.index })
+                });
+                showToast("Clicked #" + n.index);
+              } catch (e) {
+                showToast(e.message);
+              }
+            });
+
+            row.appendChild(info);
+            row.appendChild(btn);
+            list.appendChild(row);
+          });
+        } catch (e) {
+          showToast(e.message);
+        }
+      });
+
+      window.addEventListener("beforeunload", () => {
+        stopPhoneAudioStream();
+        stopMirrorStream();
+      });
+
+      // Boot
+      updateAudioButtonsUI();
+      pingPhone();
+    })();
+  </script>
 </body>
 </html>
