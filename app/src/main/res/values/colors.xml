@@ -1,4 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="deck_white">#FFFFFFFF</color>
+    <color name="deck_white">#FFF6F6F4</color>
 </resources>

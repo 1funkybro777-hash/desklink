@@ -17,20 +17,19 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.ContentCopy
-import androidx.compose.material.icons.rounded.DeleteOutline
-import androidx.compose.material.icons.rounded.Share
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -39,19 +38,29 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.example.R
+import androidx.compose.ui.unit.sp
 import com.example.model.RemoteCapabilities
 import com.example.ui.DeckLinkUiState
-import com.example.ui.theme.PureBlack
+import com.example.ui.components.SmartSectionHeaderWithLine
 import com.example.ui.theme.PureWhite
+import com.example.ui.theme.SmartBlue
+import com.example.ui.theme.SmartBorder
+import com.example.ui.theme.SmartCanvas
+import com.example.ui.theme.SmartInk
+import com.example.ui.theme.SmartInkMuted
+import com.example.ui.theme.SmartLiveGreen
+import com.example.ui.theme.SmartLiveGreenTint
+import com.example.ui.theme.SmartSearchPill
+import com.example.ui.theme.SmartSlateTitle
+import com.example.ui.theme.SmartSurfaceElevated
 
 @Composable
 fun ControlsScreen(
     state: DeckLinkUiState,
+    onBack: () -> Unit,
     onUpdateCapability: ((RemoteCapabilities) -> RemoteCapabilities) -> Unit,
     onOpenAccessibilitySettings: () -> Unit,
     onOpenNotificationSettings: () -> Unit,
@@ -60,193 +69,220 @@ fun ControlsScreen(
     onStopFinderRing: () -> Unit,
     onPushClipboard: (String) -> Unit,
     onCopyClipboard: (String) -> Unit,
-    onPickMediaForVault: () -> Unit,
-    onPickDocumentForVault: () -> Unit,
-    onShareVaultFile: (String) -> Unit,
-    onDeleteVaultFile: (String) -> Unit,
-    onCopyUsbCommand: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var clipDraft by remember { mutableStateOf("") }
+    var clipboardDraft by remember { mutableStateOf("") }
     val caps = state.settings.capabilities
 
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(PureWhite),
+            .background(SmartCanvas),
         contentAlignment = Alignment.TopCenter
     ) {
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .widthIn(max = 640.dp),
-            contentPadding = PaddingValues(horizontal = 18.dp, vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+                .widthIn(max = 600.dp),
+            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 32.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item {
-                Column {
-                    Text(
-                        text = "All Features",
-                        style = MaterialTheme.typography.headlineMedium,
-                        color = PureBlack
-                    )
-                    Text(
-                        text = "Dedicated section for every phone-to-laptop control feature.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = PureBlack
-                    )
-                }
-            }
-
-            // FEATURE SECTION 1: SCREEN MIRROR & AUDIO STREAMING
-            item {
-                MonoSectionCard(title = "SCREEN MIRROR & PHONE AUDIO") {
-                    MonoSwitchRow(
-                        title = "Allow Live Screen Mirror",
-                        subtitle = "Stream live phone video & rotation to laptop",
-                        checked = caps.screenMirror,
-                        testTag = "cap_screen_mirror",
-                        onCheckedChange = { v -> onUpdateCapability { it.copy(screenMirror = v) } }
-                    )
-                    HorizontalDivider(color = PureBlack, thickness = 1.dp)
-                    MonoSwitchRow(
-                        title = "Allow Phone Sound to Laptop",
-                        subtitle = "Forward music, videos & game sound to laptop speakers",
-                        checked = caps.audioForwarding,
-                        testTag = "cap_audio_forwarding",
-                        onCheckedChange = { v -> onUpdateCapability { it.copy(audioForwarding = v) } }
-                    )
-                }
-            }
-
-            // FEATURE SECTION 2: REMOTE TOUCH, GESTURES & KEYBOARD
-            item {
-                MonoSectionCard(title = "REMOTE TOUCH & KEYBOARD") {
-                    Text(
-                        text = if (state.readiness.accessibilityConnected) {
-                            "Accessibility Engine: ACTIVE"
-                        } else {
-                            "Accessibility Engine: NOT ENABLED — Tap below to allow remote taps, swipes & typing."
-                        },
-                        style = MaterialTheme.typography.bodySmall,
-                        fontWeight = FontWeight.Medium,
-                        color = PureBlack
-                    )
-                    MonoActionButton(
-                        text = if (state.readiness.accessibilityConnected) "Accessibility Settings (Active)" else "Enable Remote Touch Service",
-                        testTag = "accessibility_setup_button",
-                        onClick = onOpenAccessibilitySettings
-                    )
-                    MonoSwitchRow(
-                        title = "Allow Remote Touch & Typing",
-                        subtitle = "Permit clicks, swipes, Back/Home/Lock & keyboard input",
-                        checked = caps.remoteTouchAndInput,
-                        testTag = "cap_remote_touch",
-                        onCheckedChange = { v -> onUpdateCapability { it.copy(remoteTouchAndInput = v) } }
-                    )
-                }
-            }
-
-            // FEATURE SECTION 3: AUDIO, VOLUME & MEDIA
-            item {
-                MonoSectionCard(title = "VOLUME, RINGER & MEDIA CONTROLS") {
-                    MonoSwitchRow(
-                        title = "Allow Volume & Media Control",
-                        subtitle = "Media/Ring/Notification/Alarm levels, ringer mode & Play/Pause/Next",
-                        checked = caps.audioAndMedia,
-                        testTag = "cap_audio_media",
-                        onCheckedChange = { v -> onUpdateCapability { it.copy(audioAndMedia = v) } }
-                    )
-                }
-            }
-
-            // FEATURE SECTION 4: APP LAUNCHER / STREAMING
-            item {
-                MonoSectionCard(title = "APP LAUNCHER (${state.installedApps.size} APPS)") {
-                    MonoSwitchRow(
-                        title = "Allow Remote App Launching",
-                        subtitle = "Browse and open installed phone apps directly from laptop",
-                        checked = caps.appLauncher,
-                        testTag = "cap_app_launcher",
-                        onCheckedChange = { v -> onUpdateCapability { it.copy(appLauncher = v) } }
-                    )
-                }
-            }
-
-            // FEATURE SECTION 5: FILE TRANSFER VAULT
-            item {
-                MonoSectionCard(title = "FILE TRANSFER VAULT (${state.vaultFiles.size} FILES)") {
-                    MonoSwitchRow(
-                        title = "Allow Two-Way File Transfers",
-                        subtitle = "Upload files from laptop or download vault files on laptop",
-                        checked = caps.fileVault,
-                        testTag = "cap_file_vault",
-                        onCheckedChange = { v -> onUpdateCapability { it.copy(fileVault = v) } }
-                    )
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(
+                        onClick = onBack,
+                        modifier = Modifier.testTag("actions_back_button")
                     ) {
-                        MonoActionButton(
-                            text = "Add Photo / Video",
-                            testTag = "add_vault_media_button",
-                            onClick = onPickMediaForVault,
-                            modifier = Modifier.weight(1f)
-                        )
-                        MonoActionButton(
-                            text = "Add Document",
-                            testTag = "add_vault_document_button",
-                            onClick = onPickDocumentForVault,
-                            modifier = Modifier.weight(1f)
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                            contentDescription = "Back",
+                            tint = SmartInk
                         )
                     }
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Actions and gestures",
+                        color = SmartSlateTitle,
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
 
-                    if (state.vaultFiles.isEmpty()) {
-                        Text(
-                            text = "No files in vault yet. Add a file above or send one from your laptop.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = PureBlack
-                        )
-                    } else {
-                        state.vaultFiles.forEach { file ->
-                            Surface(
-                                color = PureWhite,
-                                shape = RoundedCornerShape(10.dp),
-                                border = BorderStroke(1.dp, PureBlack)
+            // Remote Touch & Accessibility
+            item {
+                SmartSectionHeaderWithLine(title = "Remote touch & keys")
+                Spacer(modifier = Modifier.height(10.dp))
+                Surface(
+                    shape = RoundedCornerShape(22.dp),
+                    color = SmartSurfaceElevated,
+                    border = BorderStroke(1.dp, SmartBorder),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Accessibility touch service", color = SmartInk, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                                Text(
+                                    "Enables mouse taps, rotated swipes, keyboard typing, and Back/Home keys from laptop.",
+                                    color = SmartInkMuted,
+                                    fontSize = 12.sp
+                                )
+                            }
+                            StatusPill(
+                                text = if (state.readiness.accessibilityConnected) "Active" else "Off",
+                                active = state.readiness.accessibilityConnected
+                            )
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            OutlinedButton(
+                                onClick = onOpenAccessibilitySettings,
+                                shape = RoundedCornerShape(14.dp),
+                                border = BorderStroke(1.dp, SmartBorder),
+                                modifier = Modifier.testTag("open_accessibility_settings")
                             ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 12.dp, vertical = 6.dp),
-                                    verticalAlignment = Alignment.CenterVertically
+                                Text("Open Accessibility Settings", color = SmartBlue)
+                            }
+                            Switch(
+                                checked = caps.remoteTouchAndInput,
+                                onCheckedChange = { v -> onUpdateCapability { it.copy(remoteTouchAndInput = v) } },
+                                colors = SwitchDefaults.colors(checkedThumbColor = PureWhite, checkedTrackColor = SmartBlue)
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Notification Bridge
+            item {
+                SmartSectionHeaderWithLine(title = "Notification bridge")
+                Spacer(modifier = Modifier.height(10.dp))
+                Surface(
+                    shape = RoundedCornerShape(22.dp),
+                    color = SmartSurfaceElevated,
+                    border = BorderStroke(1.dp, SmartBorder),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Mirror phone notifications", color = SmartInk, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                                Text(
+                                    "View live phone alerts on your laptop and dismiss them remotely.",
+                                    color = SmartInkMuted,
+                                    fontSize = 12.sp
+                                )
+                            }
+                            StatusPill(
+                                text = if (state.readiness.notificationListenerConnected) "Active" else "Off",
+                                active = state.readiness.notificationListenerConnected
+                            )
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            OutlinedButton(
+                                onClick = onOpenNotificationSettings,
+                                shape = RoundedCornerShape(14.dp),
+                                border = BorderStroke(1.dp, SmartBorder),
+                                modifier = Modifier.testTag("open_notification_settings")
+                            ) {
+                                Text("Open Notification Access", color = SmartBlue)
+                            }
+                            Switch(
+                                checked = caps.notificationBridge,
+                                onCheckedChange = { v -> onUpdateCapability { it.copy(notificationBridge = v) } },
+                                colors = SwitchDefaults.colors(checkedThumbColor = PureWhite, checkedTrackColor = SmartBlue)
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Hardware & Automation Macros
+            item {
+                SmartSectionHeaderWithLine(title = "Hardware & macros")
+                Spacer(modifier = Modifier.height(10.dp))
+                Surface(
+                    shape = RoundedCornerShape(22.dp),
+                    color = SmartSurfaceElevated,
+                    border = BorderStroke(1.dp, SmartBorder),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Button(
+                                onClick = onToggleTorch,
+                                shape = RoundedCornerShape(14.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = if (state.readiness.torchEnabled) SmartBlue else SmartSearchPill,
+                                    contentColor = if (state.readiness.torchEnabled) PureWhite else SmartInk
+                                ),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .testTag("actions_torch_button")
+                            ) {
+                                Text(if (state.readiness.torchEnabled) "Flashlight: ON" else "Flashlight: OFF")
+                            }
+
+                            if (state.readiness.finderRingActive) {
+                                Button(
+                                    onClick = onStopFinderRing,
+                                    shape = RoundedCornerShape(14.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = SmartSlateTitle, contentColor = PureWhite),
+                                    modifier = Modifier.weight(1f)
                                 ) {
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = file.name,
-                                            style = MaterialTheme.typography.titleSmall,
-                                            color = PureBlack,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
-                                        Text(
-                                            text = formatBytes(file.sizeBytes),
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = PureBlack
-                                        )
-                                    }
-                                    IconButton(
-                                        onClick = { onShareVaultFile(file.name) },
-                                        modifier = Modifier.minimumInteractiveComponentSize()
-                                    ) {
-                                        Icon(Icons.Rounded.Share, contentDescription = stringResource(R.string.cd_share_file), tint = PureBlack)
-                                    }
-                                    IconButton(
-                                        onClick = { onDeleteVaultFile(file.name) },
-                                        modifier = Modifier.minimumInteractiveComponentSize()
-                                    ) {
-                                        Icon(Icons.Rounded.DeleteOutline, contentDescription = stringResource(R.string.cd_delete_file), tint = PureBlack)
-                                    }
+                                    Text("Stop Ringing")
+                                }
+                            }
+                        }
+
+                        HorizontalDivider(color = SmartBorder)
+
+                        state.macros.forEach { macro ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(macro.title, color = SmartInk, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                                    Text(macro.subtitle, color = SmartInkMuted, fontSize = 12.sp)
+                                }
+                                OutlinedButton(
+                                    onClick = { onRunMacro(macro.id) },
+                                    shape = RoundedCornerShape(12.dp),
+                                    border = BorderStroke(1.dp, SmartBorder)
+                                ) {
+                                    Text("Run", color = SmartBlue)
                                 }
                             }
                         }
@@ -254,237 +290,78 @@ fun ControlsScreen(
                 }
             }
 
-            // FEATURE SECTION 6: CLIPBOARD SYNC
+            // Clipboard Sync
             item {
-                MonoSectionCard(title = "CLIPBOARD SYNC") {
-                    MonoSwitchRow(
-                        title = "Allow Bidirectional Clipboard",
-                        subtitle = "Copy and paste text snippets between laptop and phone",
-                        checked = caps.clipboardSync,
-                        testTag = "cap_clipboard",
-                        onCheckedChange = { v -> onUpdateCapability { it.copy(clipboardSync = v) } }
-                    )
-
-                    OutlinedTextField(
-                        value = clipDraft,
-                        onValueChange = { clipDraft = it },
-                        placeholder = { Text("Enter text or link to share with laptop...", color = PureBlack) },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = PureBlack,
-                            unfocusedTextColor = PureBlack,
-                            focusedBorderColor = PureBlack,
-                            unfocusedBorderColor = PureBlack,
-                            cursorColor = PureBlack,
-                            focusedContainerColor = PureWhite,
-                            unfocusedContainerColor = PureWhite
-                        ),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("clipboard_draft_input")
-                    )
-
-                    MonoActionButton(
-                        text = "Push to Shared Clipboard",
-                        testTag = "save_clipboard_button",
-                        onClick = {
-                            if (clipDraft.isNotBlank()) {
-                                onPushClipboard(clipDraft)
-                                clipDraft = ""
-                            }
-                        }
-                    )
-
-                    state.clipboardHistory.take(4).forEach { clip ->
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = clip.text,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = PureBlack,
-                                    maxLines = 2,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                                Text(
-                                    text = clip.source,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = PureBlack
-                                )
-                            }
-                            IconButton(
-                                onClick = { onCopyClipboard(clip.text) },
-                                modifier = Modifier.minimumInteractiveComponentSize()
-                            ) {
-                                Icon(Icons.Rounded.ContentCopy, contentDescription = stringResource(R.string.cd_copy), tint = PureBlack)
-                            }
-                        }
-                    }
-                }
-            }
-
-            // FEATURE SECTION 7: NOTIFICATIONS BRIDGE
-            item {
-                MonoSectionCard(title = "NOTIFICATIONS BRIDGE") {
-                    Text(
-                        text = if (state.readiness.notificationListenerConnected) {
-                            "Notification Access: ACTIVE"
-                        } else {
-                            "Notification Access: NOT ENABLED — Grant access to view & dismiss alerts on laptop."
-                        },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = PureBlack
-                    )
-                    MonoActionButton(
-                        text = if (state.readiness.notificationListenerConnected) "Notification Settings (Active)" else "Enable Notification Bridge",
-                        testTag = "notification_setup_button",
-                        onClick = onOpenNotificationSettings
-                    )
-                    MonoSwitchRow(
-                        title = "Allow Notification Mirroring",
-                        subtitle = "Show phone notifications on laptop and allow remote dismiss",
-                        checked = caps.notificationBridge,
-                        testTag = "cap_notifications",
-                        onCheckedChange = { v -> onUpdateCapability { it.copy(notificationBridge = v) } }
-                    )
-                }
-            }
-
-            // FEATURE SECTION 8: HARDWARE ACTIONS & AUTOMATION MACROS
-            item {
-                MonoSectionCard(title = "HARDWARE & AUTOMATION MACROS") {
-                    MonoSwitchRow(
-                        title = "Allow Hardware Actions & Links",
-                        subtitle = "Flashlight, Ring Phone, Vibrate Ping, and Open Web Links",
-                        checked = caps.hardwareActions,
-                        testTag = "cap_hardware",
-                        onCheckedChange = { v -> onUpdateCapability { it.copy(hardwareActions = v) } }
-                    )
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                SmartSectionHeaderWithLine(title = "Clipboard sync")
+                Spacer(modifier = Modifier.height(10.dp))
+                Surface(
+                    shape = RoundedCornerShape(22.dp),
+                    color = SmartSurfaceElevated,
+                    border = BorderStroke(1.dp, SmartBorder),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        MonoActionButton(
-                            text = if (state.readiness.torchEnabled) "Flashlight: ON" else "Flashlight: OFF",
-                            emphasized = state.readiness.torchEnabled,
-                            testTag = "local_torch_button",
-                            onClick = onToggleTorch,
-                            modifier = Modifier.weight(1f)
+                        OutlinedTextField(
+                            value = clipboardDraft,
+                            onValueChange = { clipboardDraft = it },
+                            placeholder = { Text("Paste text to sync with laptop...") },
+                            shape = RoundedCornerShape(16.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = SmartBlue,
+                                unfocusedBorderColor = SmartBorder
+                            ),
+                            modifier = Modifier.fillMaxWidth()
                         )
-                        if (state.readiness.finderRingActive) {
-                            MonoActionButton(
-                                text = "Stop Ring Alert",
-                                emphasized = true,
-                                testTag = "stop_finder_ring_button",
-                                onClick = onStopFinderRing,
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-                    }
-
-                    state.macros.forEach { macro ->
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
+                        Button(
+                            onClick = {
+                                if (clipboardDraft.isNotBlank()) {
+                                    onPushClipboard(clipboardDraft)
+                                    clipboardDraft = ""
+                                }
+                            },
+                            shape = RoundedCornerShape(14.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = SmartBlue, contentColor = PureWhite),
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            Column(modifier = Modifier.weight(1f).padding(end = 10.dp)) {
-                                Text(macro.title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = PureBlack)
-                                Text(macro.stepsSummary, style = MaterialTheme.typography.bodySmall, color = PureBlack)
-                            }
+                            Text("Save to Shared Clipboard")
+                        }
+
+                        state.clipboardHistory.take(4).forEach { entry ->
                             Surface(
-                                onClick = { onRunMacro(macro.id) },
-                                color = PureWhite,
-                                shape = RoundedCornerShape(8.dp),
-                                border = BorderStroke(1.2.dp, PureBlack),
-                                modifier = Modifier
-                                    .minimumInteractiveComponentSize()
-                                    .testTag("run_macro_${macro.id}")
+                                onClick = { onCopyClipboard(entry.text) },
+                                shape = RoundedCornerShape(12.dp),
+                                color = SmartCanvas,
+                                border = BorderStroke(1.dp, SmartBorder),
+                                modifier = Modifier.fillMaxWidth()
                             ) {
-                                Text(
-                                    text = "Run",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = PureBlack,
-                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
-                                )
+                                Column(modifier = Modifier.padding(12.dp)) {
+                                    Text(entry.source, color = SmartBlue, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                                    Text(entry.text, color = SmartInk, fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                }
                             }
                         }
                     }
                 }
             }
-
-            // FEATURE SECTION 9: USB CABLE BRIDGE
-            item {
-                MonoSectionCard(title = "USB CABLE BRIDGE (ZERO-LAG)") {
-                    Text(
-                        text = state.adbForwardCommand,
-                        style = MaterialTheme.typography.labelMedium,
-                        color = PureBlack
-                    )
-                    MonoActionButton(
-                        text = "Copy USB Forward Command",
-                        testTag = "copy_usb_command_button",
-                        onClick = onCopyUsbCommand
-                    )
-                }
-            }
-
-            item { Spacer(modifier = Modifier.height(14.dp)) }
         }
     }
 }
 
 @Composable
-internal fun MonoSwitchRow(
-    title: String,
-    subtitle: String,
-    checked: Boolean,
-    testTag: String,
-    onCheckedChange: (Boolean) -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
+private fun StatusPill(text: String, active: Boolean) {
+    Surface(
+        shape = RoundedCornerShape(999.dp),
+        color = if (active) SmartLiveGreenTint else SmartSearchPill
     ) {
-        Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold,
-                color = PureBlack
-            )
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = PureBlack
-            )
-        }
-        Switch(
-            checked = checked,
-            onCheckedChange = onCheckedChange,
-            colors = SwitchDefaults.colors(
-                checkedThumbColor = PureBlack,
-                checkedTrackColor = PureWhite,
-                checkedBorderColor = PureBlack,
-                uncheckedThumbColor = PureBlack,
-                uncheckedTrackColor = PureWhite,
-                uncheckedBorderColor = PureBlack
-            ),
-            modifier = Modifier.testTag(testTag)
+        Text(
+            text = text,
+            color = if (active) SmartLiveGreen else SmartInkMuted,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
         )
-    }
-}
-
-private fun formatBytes(bytes: Long): String {
-    return when {
-        bytes < 1024L -> "$bytes B"
-        bytes < 1024L * 1024L -> "${"%.1f".format(bytes / 1024f)} KB"
-        else -> "${"%.2f".format(bytes / (1024f * 1024f))} MB"
     }
 }

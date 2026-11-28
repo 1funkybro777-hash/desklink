@@ -47,8 +47,10 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 enum class DeckTab {
-    DECK,
-    CONTROLS,
+    HOME,
+    FILES,
+    ADD_DEVICES,
+    ACTIONS,
     ACTIVITY,
     SETTINGS
 }
@@ -87,7 +89,7 @@ class DeckLinkViewModel(application: Application) : AndroidViewModel(application
     private val _snackbarEvents = MutableSharedFlow<String>(extraBufferCapacity = 8)
     val snackbarEvents: SharedFlow<String> = _snackbarEvents.asSharedFlow()
 
-    private val _selectedTab = MutableStateFlow(DeckTab.DECK)
+    private val _selectedTab = MutableStateFlow(DeckTab.HOME)
     val selectedTab: StateFlow<DeckTab> = _selectedTab.asStateFlow()
 
     val uiState: StateFlow<DeckLinkUiState> = combine(
@@ -142,7 +144,7 @@ class DeckLinkViewModel(application: Application) : AndroidViewModel(application
 
     fun selectTab(tab: DeckTab) {
         _selectedTab.value = tab
-        if (tab == DeckTab.CONTROLS) {
+        if (tab == DeckTab.FILES) {
             refreshVaultFiles()
         }
     }
@@ -190,31 +192,31 @@ class DeckLinkViewModel(application: Application) : AndroidViewModel(application
         val port = DeckLinkStateStore.settings.value.port
         val intent = DeckLinkHostService.startServerIntent(appContext, port)
         ContextCompat.startForegroundService(appContext, intent)
-        emitToast("Remote Host started on port $port")
+        emitToast("PC Host started on port $port")
     }
 
     fun stopServer() {
         val intent = DeckLinkHostService.stopServerIntent(appContext)
         appContext.startService(intent)
-        emitToast("Remote Host stopped")
+        emitToast("PC Host stopped")
     }
 
     fun onMediaProjectionGranted(resultCode: Int, data: Intent, autoStartAudio: Boolean) {
         val intent = DeckLinkHostService.startMirrorIntent(appContext, resultCode, data, autoStartAudio)
         ContextCompat.startForegroundService(appContext, intent)
-        emitToast(if (autoStartAudio) "Screen Mirror & Phone Audio started" else "Screen Mirror started")
+        emitToast(if (autoStartAudio) "Screen Share & Phone Audio started" else "Screen Share started")
     }
 
     fun stopScreenMirror() {
         val intent = DeckLinkHostService.stopMirrorIntent(appContext)
         appContext.startService(intent)
-        emitToast("Screen Mirror stopped")
+        emitToast("Screen Share stopped")
     }
 
     fun startAudioForwarding() {
         val intent = DeckLinkHostService.startAudioIntent(appContext)
         appContext.startService(intent)
-        emitToast("Starting phone audio forwarding to laptop")
+        emitToast("Phone audio streaming to laptop")
     }
 
     fun stopAudioForwarding() {
@@ -225,22 +227,22 @@ class DeckLinkViewModel(application: Application) : AndroidViewModel(application
 
     fun setMirrorRotation(degrees: Int) {
         DeckLinkStateStore.setMirrorRotationDegrees(degrees)
-        emitToast("Mirror rotation set to ${DeckLinkStateStore.readiness.value.mirrorRotationDegrees}°")
+        emitToast("Display rotated to ${DeckLinkStateStore.readiness.value.mirrorRotationDegrees}°")
     }
 
     fun rotatePairingPin() {
         DeckLinkStateStore.rotatePairingPin()
-        emitToast("New 6-digit pairing PIN created")
+        emitToast("New 6-digit pairing PIN generated")
     }
 
     fun revokeSession(sessionId: String) {
         DeckLinkStateStore.revokeSession(sessionId)
-        emitToast("Laptop disconnected")
+        emitToast("Device disconnected")
     }
 
     fun revokeAllSessions() {
         DeckLinkStateStore.revokeAllSessions()
-        emitToast("All connected laptops disconnected")
+        emitToast("All connected devices disconnected")
     }
 
     fun clearLogs() {
