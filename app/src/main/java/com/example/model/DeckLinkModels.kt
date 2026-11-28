@@ -86,7 +86,9 @@ data class VaultFileItem(
     val name: String,
     val sizeBytes: Long,
     val lastModifiedMs: Long,
-    val mimeType: String
+    val mimeType: String,
+    val relativePath: String = name,
+    val isDirectory: Boolean = false
 )
 
 data class LaunchableApp(

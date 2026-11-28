@@ -226,8 +226,8 @@ fun FilesScreen(
                             filteredFiles.forEach { file ->
                                 VaultFileRowCard(
                                     file = file,
-                                    onShare = { onShareVaultFile(file.name) },
-                                    onDelete = { onDeleteVaultFile(file.name) }
+                                    onShare = { onShareVaultFile(file.relativePath) },
+                                    onDelete = { onDeleteVaultFile(file.relativePath) }
                                 )
                             }
                         }
@@ -363,8 +363,8 @@ fun FilesScreen(
                         filteredFiles.forEach { file ->
                             VaultFileRowCard(
                                 file = file,
-                                onShare = { onShareVaultFile(file.name) },
-                                onDelete = { onDeleteVaultFile(file.name) }
+                                onShare = { onShareVaultFile(file.relativePath) },
+                                onDelete = { onDeleteVaultFile(file.relativePath) }
                             )
                         }
                     }

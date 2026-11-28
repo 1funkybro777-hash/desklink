@@ -22,7 +22,9 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.BufferedInputStream
 import java.io.ByteArrayOutputStream
+import java.io.File
 import java.io.OutputStream
+import java.io.RandomAccessFile
 import java.net.InetSocketAddress
 import java.net.ServerSocket
 import java.net.Socket
@@ -39,6 +41,7 @@ class DeckLinkHttpServer(
         private const val MAX_HEADER_BYTES = 16 * 1024
         private const val MAX_JSON_BODY_BYTES = 256 * 1024
         private const val STREAM_BOUNDARY = "decklinkframe"
+        private const val IO_BUFFER_BYTES = 128 * 1024 // 128 KB fast transfer buffer
     }
 
     private var serverScope: CoroutineScope? = null
@@ -59,6 +62,7 @@ class DeckLinkHttpServer(
             val safePort = port.coerceIn(1024, 65535)
             val socket = ServerSocket().apply {
                 reuseAddress = true
+                receiveBufferSize = 256 * 1024
                 bind(InetSocketAddress("0.0.0.0", safePort))
             }
             serverSocket = socket
@@ -91,25 +95,28 @@ class DeckLinkHttpServer(
         val clientIp = socket.inetAddress?.hostAddress ?: "unknown"
         socket.use { sock ->
             runCatching {
-                sock.soTimeout = 15_000
-                val input = BufferedInputStream(sock.getInputStream())
+                sock.tcpNoDelay = true
+                sock.sendBufferSize = 256 * 1024
+                sock.receiveBufferSize = 256 * 1024
+                sock.soTimeout = 30_000
+                val input = BufferedInputStream(sock.getInputStream(), IO_BUFFER_BYTES)
                 val output = sock.getOutputStream()
 
-                val request = parseHttpRequest(input) ?: return
-                routeRequest(request, clientIp, sock, output)
+                val header = parseHttpHeader(input) ?: return
+                routeRequest(header, input, clientIp, sock, output)
             }
         }
     }
 
-    private data class HttpRequest(
+    private data class HttpHeader(
         val method: String,
         val path: String,
         val query: Map<String, String>,
         val headers: Map<String, String>,
-        val body: ByteArray
+        val contentLength: Long
     )
 
-    private fun parseHttpRequest(input: BufferedInputStream): HttpRequest? {
+    private fun parseHttpHeader(input: BufferedInputStream): HttpHeader? {
         val headerBuf = ByteArrayOutputStream()
         var matched = 0
         while (headerBuf.size() < MAX_HEADER_BYTES) {
@@ -151,25 +158,22 @@ class DeckLinkHttpServer(
             }
         }
 
-        val contentLength = headers["content-length"]?.toIntOrNull()?.coerceAtLeast(0) ?: 0
-        val maxAllowed = if (pathPart == "/api/files/upload") {
-            VaultFileManager.MAX_UPLOAD_BYTES.toInt()
-        } else {
-            MAX_JSON_BODY_BYTES
-        }
-        if (contentLength > maxAllowed) {
-            return HttpRequest(method, "__PAYLOAD_TOO_LARGE__", queryMap, headers, ByteArray(0))
-        }
+        val contentLength = headers["content-length"]?.toLongOrNull()?.coerceAtLeast(0L) ?: 0L
+        return HttpHeader(method, pathPart, queryMap, headers, contentLength)
+    }
 
-        val body = ByteArray(contentLength)
+    private fun readSmallBody(input: BufferedInputStream, contentLength: Long): ByteArray? {
+        if (contentLength > MAX_JSON_BODY_BYTES.toLong()) return null
+        val len = contentLength.toInt()
+        if (len == 0) return ByteArray(0)
+        val body = ByteArray(len)
         var offset = 0
-        while (offset < contentLength) {
-            val read = input.read(body, offset, contentLength - offset)
+        while (offset < len) {
+            val read = input.read(body, offset, len - offset)
             if (read <= 0) break
             offset += read
         }
-
-        return HttpRequest(method, pathPart, queryMap, headers, body)
+        return body
     }
 
     private fun parseQuery(query: String): Map<String, String> {
@@ -185,16 +189,12 @@ class DeckLinkHttpServer(
     }
 
     private suspend fun routeRequest(
-        req: HttpRequest,
+        req: HttpHeader,
+        input: BufferedInputStream,
         clientIp: String,
         socket: Socket,
         out: OutputStream
     ) {
-        if (req.path == "__PAYLOAD_TOO_LARGE__") {
-            sendJson(out, 413, JSONObject().put("error", "Payload exceeds limit"))
-            return
-        }
-
         when {
             req.method == "GET" && (req.path == "/" || req.path == "/index.html") -> {
                 sendBytes(
@@ -224,7 +224,12 @@ class DeckLinkHttpServer(
             }
 
             req.method == "POST" && req.path == "/api/auth/pair" -> {
-                val payload = parseJson(req.body)
+                val body = readSmallBody(input, req.contentLength)
+                if (body == null) {
+                    sendJson(out, 413, JSONObject().put("error", "Payload too large"))
+                    return
+                }
+                val payload = parseJson(body)
                 val pin = payload.optString("pin", "")
                 val clientLabel = payload.optString("clientLabel", req.headers["user-agent"]?.take(42) ?: "Laptop Browser")
                 when (val result = DeckLinkStateStore.attemptPair(pin, clientIp, clientLabel)) {
@@ -258,10 +263,7 @@ class DeckLinkHttpServer(
 
         // Live Video Mirror Stream & Single Snapshot
         if (req.method == "GET" && (req.path == "/api/stream/mjpeg" || req.path == "/api/screen/frame")) {
-            val bearer = extractBearer(req.headers)
-            val ticket = req.query["ticket"]
-            val session = DeckLinkStateStore.validateBearerToken(bearer)
-                ?: DeckLinkStateStore.validateStreamTicket(ticket)
+            val session = validateBearerOrTicket(req)
             if (session == null) {
                 sendJson(out, 401, JSONObject().put("error", "Unauthorized stream request"))
                 return
@@ -288,10 +290,7 @@ class DeckLinkHttpServer(
 
         // Live Internal Phone Audio Stream (16-bit PCM @ 24kHz mono over HTTP chunked stream)
         if (req.method == "GET" && req.path == "/api/stream/audio") {
-            val bearer = extractBearer(req.headers)
-            val ticket = req.query["ticket"]
-            val session = DeckLinkStateStore.validateBearerToken(bearer)
-                ?: DeckLinkStateStore.validateStreamTicket(ticket)
+            val session = validateBearerOrTicket(req)
             if (session == null) {
                 sendJson(out, 401, JSONObject().put("error", "Unauthorized audio stream request"))
                 return
@@ -302,7 +301,7 @@ class DeckLinkHttpServer(
                 return
             }
             if (!DeckLinkStateStore.readiness.value.audioForwardingActive) {
-                sendJson(out, 503, JSONObject().put("error", "Phone audio capture is not active on phone yet. Start Screen Mirror & Audio on your phone."))
+                sendJson(out, 503, JSONObject().put("error", "Phone audio capture is not active on phone yet. Tap 'Phone audio' on your phone."))
                 return
             }
             DeckLinkStateStore.logCommand(clientIp, "Phone Audio Listen", "Laptop listening to phone sound", LogStatus.ALLOWED)
@@ -310,12 +309,9 @@ class DeckLinkHttpServer(
             return
         }
 
-        // Vault File Download
+        // Unlimited-Size Fast Streaming File Download & Preview (Supports HTTP Range seeking)
         if (req.method == "GET" && req.path == "/api/files/download") {
-            val bearer = extractBearer(req.headers)
-            val ticket = req.query["ticket"]
-            val session = DeckLinkStateStore.validateBearerToken(bearer)
-                ?: DeckLinkStateStore.validateStreamTicket(ticket)
+            val session = validateBearerOrTicket(req)
             if (session == null) {
                 sendJson(out, 401, JSONObject().put("error", "Unauthorized"))
                 return
@@ -325,22 +321,49 @@ class DeckLinkHttpServer(
                 sendJson(out, 403, JSONObject().put("error", "File Vault is disabled on phone"))
                 return
             }
-            val fileName = req.query["name"].orEmpty()
-            val file = vaultFileManager.resolveSafeFile(fileName)
+            val relPath = req.query["path"]?.ifBlank { null } ?: req.query["name"].orEmpty()
+            val file = vaultFileManager.resolveSafeEntry(relPath)
             if (file == null || !file.exists() || !file.isFile) {
                 sendJson(out, 404, JSONObject().put("error", "File not found in vault"))
                 return
             }
-            DeckLinkStateStore.logCommand(clientIp, "File Download", file.name, LogStatus.ALLOWED)
-            sendBytes(
-                out = out,
-                statusCode = 200,
-                contentType = vaultFileManager.guessMimeType(file.name),
-                bytes = file.readBytes(),
-                extraHeaders = mapOf(
-                    "Content-Disposition" to "attachment; filename=\"${file.name.replace("\"", "")}\""
+            val inline = req.query["inline"] == "1" || req.query["inline"] == "true"
+            DeckLinkStateStore.logCommand(clientIp, if (inline) "File Preview" else "File Download", file.name, LogStatus.ALLOWED)
+            streamFileDownload(socket, out, file, req.headers["range"], inline)
+            return
+        }
+
+        // Unlimited-Size Fast Streaming File Upload (Zero-RAM 128KB direct socket -> disk)
+        if (req.method == "POST" && req.path == "/api/files/upload") {
+            val session = validateBearerOrTicket(req)
+            if (session == null) {
+                sendJson(out, 401, JSONObject().put("error", "Authentication required"))
+                return
+            }
+            if (!DeckLinkStateStore.settings.value.capabilities.fileVault) {
+                DeckLinkStateStore.logCommand(clientIp, "Upload Vault File", "Blocked by phone capability switch", LogStatus.BLOCKED)
+                sendJson(out, 403, JSONObject().put("error", "File Vault is disabled in DeckLink on your phone"))
+                return
+            }
+            socket.soTimeout = 60_000
+            val dirPath = req.query["path"].orEmpty()
+            val rawName = req.query["name"].orEmpty().ifBlank { "upload_${System.currentTimeMillis()}.bin" }
+            val res = vaultFileManager.streamUpload(dirPath, rawName, req.contentLength, input)
+            if (res.isSuccess) {
+                val saved = res.getOrThrow()
+                DeckLinkStateStore.logCommand(clientIp, "File Uploaded", "${saved.relativePath} (${saved.sizeBytes} B)", LogStatus.ALLOWED)
+                sendJson(
+                    out,
+                    200,
+                    JSONObject()
+                        .put("ok", true)
+                        .put("name", saved.name)
+                        .put("relativePath", saved.relativePath)
+                        .put("sizeBytes", saved.sizeBytes)
                 )
-            )
+            } else {
+                sendJson(out, 400, JSONObject().put("error", res.exceptionOrNull()?.message ?: "Upload failed"))
+            }
             return
         }
 
@@ -349,6 +372,12 @@ class DeckLinkHttpServer(
         val session = DeckLinkStateStore.validateBearerToken(bearerToken)
         if (session == null) {
             sendJson(out, 401, JSONObject().put("error", "Authentication required"))
+            return
+        }
+
+        val bodyBytes = readSmallBody(input, req.contentLength)
+        if (bodyBytes == null) {
+            sendJson(out, 413, JSONObject().put("error", "JSON payload exceeds limit"))
             return
         }
 
@@ -375,6 +404,7 @@ class DeckLinkHttpServer(
                     .put("ramTotalMb", telemetry.ramTotalMb)
                     .put("storageUsedGb", telemetry.storageUsedGb.toDouble())
                     .put("storageTotalGb", telemetry.storageTotalGb.toDouble())
+                    .put("vaultFreeSpaceBytes", vaultFileManager.freeSpaceBytes())
                     .put("screenWidth", telemetry.screenWidthPx)
                     .put("screenHeight", telemetry.screenHeightPx)
                     .put("uptimeMinutes", telemetry.uptimeMinutes)
@@ -425,7 +455,7 @@ class DeckLinkHttpServer(
             // Mirror Rotation Sync (0 / 90 / 180 / 270)
             req.method == "POST" && req.path == "/api/screen/rotate" -> {
                 if (!requireCapability(caps.screenMirror, clientIp, "Rotate Mirror", out)) return
-                val deg = parseJson(req.body).optInt("degrees", 0)
+                val deg = parseJson(bodyBytes).optInt("degrees", 0)
                 DeckLinkStateStore.setMirrorRotationDegrees(deg)
                 val finalDeg = DeckLinkStateStore.readiness.value.mirrorRotationDegrees
                 DeckLinkStateStore.logCommand(clientIp, "Mirror Rotation", "${finalDeg}°", LogStatus.ALLOWED)
@@ -436,7 +466,7 @@ class DeckLinkHttpServer(
             req.method == "POST" && req.path == "/api/input/tap" -> {
                 if (!requireCapability(caps.remoteTouchAndInput, clientIp, "Remote Tap", out)) return
                 val a11y = requireAccessibility(clientIp, "Remote Tap", out) ?: return
-                val body = parseJson(req.body)
+                val body = parseJson(bodyBytes)
                 val x = body.optDouble("x", -1.0).toFloat()
                 val y = body.optDouble("y", -1.0).toFloat()
                 val duration = body.optLong("durationMs", 70L)
@@ -452,7 +482,7 @@ class DeckLinkHttpServer(
             req.method == "POST" && req.path == "/api/input/swipe" -> {
                 if (!requireCapability(caps.remoteTouchAndInput, clientIp, "Remote Swipe", out)) return
                 val a11y = requireAccessibility(clientIp, "Remote Swipe", out) ?: return
-                val body = parseJson(req.body)
+                val body = parseJson(bodyBytes)
                 val x1 = body.optDouble("x1", -1.0).toFloat()
                 val y1 = body.optDouble("y1", -1.0).toFloat()
                 val x2 = body.optDouble("x2", -1.0).toFloat()
@@ -470,7 +500,7 @@ class DeckLinkHttpServer(
             req.method == "POST" && req.path == "/api/input/global" -> {
                 if (!requireCapability(caps.remoteTouchAndInput, clientIp, "Global Key", out)) return
                 val a11y = requireAccessibility(clientIp, "Global Key", out) ?: return
-                val action = parseJson(req.body).optString("action", "")
+                val action = parseJson(bodyBytes).optString("action", "")
                 val ok = a11y.performGlobalKey(action)
                 DeckLinkStateStore.logCommand(clientIp, "System Key", action.uppercase(), if (ok) LogStatus.ALLOWED else LogStatus.BLOCKED)
                 sendJson(out, if (ok) 200 else 400, JSONObject().put("ok", ok))
@@ -479,7 +509,7 @@ class DeckLinkHttpServer(
             req.method == "POST" && req.path == "/api/input/text" -> {
                 if (!requireCapability(caps.remoteTouchAndInput, clientIp, "Remote Typing", out)) return
                 val a11y = requireAccessibility(clientIp, "Remote Typing", out) ?: return
-                val body = parseJson(req.body)
+                val body = parseJson(bodyBytes)
                 val clear = body.optBoolean("clear", false)
                 val ok = if (clear) {
                     a11y.clearFocusedText()
@@ -515,7 +545,7 @@ class DeckLinkHttpServer(
             req.method == "POST" && req.path == "/api/input/node-click" -> {
                 if (!requireCapability(caps.remoteTouchAndInput, clientIp, "Node Click", out)) return
                 val a11y = requireAccessibility(clientIp, "Node Click", out) ?: return
-                val index = parseJson(req.body).optInt("index", -1)
+                val index = parseJson(bodyBytes).optInt("index", -1)
                 val ok = a11y.clickInteractiveNode(index)
                 DeckLinkStateStore.logCommand(clientIp, "UI Node Click", "Element #$index", if (ok) LogStatus.ALLOWED else LogStatus.BLOCKED)
                 sendJson(out, 200, JSONObject().put("ok", ok))
@@ -524,7 +554,7 @@ class DeckLinkHttpServer(
             // Audio & Media Controls
             req.method == "POST" && req.path == "/api/audio/volume" -> {
                 if (!requireCapability(caps.audioAndMedia, clientIp, "Volume Control", out)) return
-                val body = parseJson(req.body)
+                val body = parseJson(bodyBytes)
                 val stream = body.optString("stream", "")
                 val level = body.optInt("level", -1)
                 val ok = systemControl.setStreamVolume(stream, level)
@@ -534,7 +564,7 @@ class DeckLinkHttpServer(
 
             req.method == "POST" && req.path == "/api/audio/ringer" -> {
                 if (!requireCapability(caps.audioAndMedia, clientIp, "Ringer Mode", out)) return
-                val mode = parseJson(req.body).optString("mode", "")
+                val mode = parseJson(bodyBytes).optString("mode", "")
                 val ok = systemControl.setRingerMode(mode)
                 DeckLinkStateStore.logCommand(clientIp, "Ringer Mode", mode.uppercase(), if (ok) LogStatus.ALLOWED else LogStatus.BLOCKED)
                 sendJson(out, if (ok) 200 else 400, JSONObject().put("ok", ok))
@@ -542,7 +572,7 @@ class DeckLinkHttpServer(
 
             req.method == "POST" && req.path == "/api/media/key" -> {
                 if (!requireCapability(caps.audioAndMedia, clientIp, "Media Transport", out)) return
-                val command = parseJson(req.body).optString("command", "")
+                val command = parseJson(bodyBytes).optString("command", "")
                 val ok = systemControl.dispatchMediaCommand(command)
                 DeckLinkStateStore.logCommand(clientIp, "Media Control", command.uppercase(), if (ok) LogStatus.ALLOWED else LogStatus.BLOCKED)
                 sendJson(out, if (ok) 200 else 400, JSONObject().put("ok", ok))
@@ -558,7 +588,7 @@ class DeckLinkHttpServer(
 
             req.method == "POST" && req.path == "/api/clipboard" -> {
                 if (!requireCapability(caps.clipboardSync, clientIp, "Clipboard Push", out)) return
-                val text = parseJson(req.body).optString("text", "")
+                val text = parseJson(bodyBytes).optString("text", "")
                 val ok = systemControl.writeClipboardText(text, source = "Laptop ($clientIp)")
                 DeckLinkStateStore.logCommand(clientIp, "Clipboard Push", "${text.length} chars", if (ok) LogStatus.ALLOWED else LogStatus.BLOCKED)
                 sendJson(out, 200, JSONObject().put("ok", ok))
@@ -577,7 +607,7 @@ class DeckLinkHttpServer(
 
             req.method == "POST" && req.path == "/api/apps/launch" -> {
                 if (!requireCapability(caps.appLauncher, clientIp, "Launch App", out)) return
-                val pkg = parseJson(req.body).optString("packageName", "")
+                val pkg = parseJson(bodyBytes).optString("packageName", "")
                 val ok = systemControl.launchApp(pkg)
                 DeckLinkStateStore.logCommand(clientIp, "Launch App", pkg, if (ok) LogStatus.ALLOWED else LogStatus.BLOCKED)
                 sendJson(out, if (ok) 200 else 404, JSONObject().put("ok", ok))
@@ -610,7 +640,7 @@ class DeckLinkHttpServer(
 
             req.method == "POST" && req.path == "/api/notifications/dismiss" -> {
                 if (!requireCapability(caps.notificationBridge, clientIp, "Dismiss Notification", out)) return
-                val key = parseJson(req.body).optString("key", "")
+                val key = parseJson(bodyBytes).optString("key", "")
                 val ok = DeckLinkNotificationListener.instance?.dismissByKey(key) ?: false
                 DeckLinkStateStore.logCommand(clientIp, "Dismiss Notification", if (ok) "Cleared" else "Unavailable", if (ok) LogStatus.ALLOWED else LogStatus.BLOCKED)
                 sendJson(out, 200, JSONObject().put("ok", ok))
@@ -619,7 +649,7 @@ class DeckLinkHttpServer(
             // Hardware Actions & Quick Tools
             req.method == "POST" && req.path == "/api/device/torch" -> {
                 if (!requireCapability(caps.hardwareActions, clientIp, "Flashlight", out)) return
-                val enabled = parseJson(req.body).optBoolean("enabled", false)
+                val enabled = parseJson(bodyBytes).optBoolean("enabled", false)
                 val ok = systemControl.setTorchEnabled(enabled)
                 DeckLinkStateStore.logCommand(clientIp, "Flashlight", if (enabled) "ON" else "OFF", if (ok) LogStatus.ALLOWED else LogStatus.BLOCKED)
                 sendJson(out, 200, JSONObject().put("ok", ok).put("enabled", DeckLinkStateStore.readiness.value.torchEnabled))
@@ -627,7 +657,7 @@ class DeckLinkHttpServer(
 
             req.method == "POST" && req.path == "/api/device/ring" -> {
                 if (!requireCapability(caps.hardwareActions, clientIp, "Find Phone Ring", out)) return
-                val active = parseJson(req.body).optBoolean("active", true)
+                val active = parseJson(bodyBytes).optBoolean("active", true)
                 val ok = if (active) systemControl.startFinderRing() else {
                     systemControl.stopFinderRing()
                     true
@@ -638,7 +668,7 @@ class DeckLinkHttpServer(
 
             req.method == "POST" && req.path == "/api/device/vibrate" -> {
                 if (!requireCapability(caps.hardwareActions, clientIp, "Vibrate", out)) return
-                val durationMs = parseJson(req.body).optLong("durationMs", 240L)
+                val durationMs = parseJson(bodyBytes).optLong("durationMs", 240L)
                 systemControl.triggerVibration(durationMs)
                 DeckLinkStateStore.logCommand(clientIp, "Haptic Ping", "${durationMs.coerceIn(40L, 1200L)}ms", LogStatus.ALLOWED)
                 sendJson(out, 200, JSONObject().put("ok", true))
@@ -646,7 +676,7 @@ class DeckLinkHttpServer(
 
             req.method == "POST" && req.path == "/api/device/open-url" -> {
                 if (!requireCapability(caps.hardwareActions, clientIp, "Open URL", out)) return
-                val url = parseJson(req.body).optString("url", "")
+                val url = parseJson(bodyBytes).optString("url", "")
                 val ok = systemControl.openValidatedWebUrl(url)
                 DeckLinkStateStore.logCommand(clientIp, "Open URL", url.take(80), if (ok) LogStatus.ALLOWED else LogStatus.BLOCKED)
                 sendJson(
@@ -675,59 +705,149 @@ class DeckLinkHttpServer(
 
             req.method == "POST" && req.path == "/api/macros/run" -> {
                 if (!requireCapability(caps.hardwareActions && caps.audioAndMedia, clientIp, "Run Macro", out)) return
-                val id = parseJson(req.body).optString("id", "")
+                val id = parseJson(bodyBytes).optString("id", "")
                 val (ok, msg) = systemControl.runMacro(id)
                 DeckLinkStateStore.logCommand(clientIp, "Macro Executed", "$id: $msg", if (ok) LogStatus.ALLOWED else LogStatus.BLOCKED)
                 sendJson(out, if (ok) 200 else 400, JSONObject().put("ok", ok).put("message", msg))
             }
 
-            // Shared File Vault
+            // Secure Multi-Folder File Browser (Unlimited Size)
             req.method == "GET" && req.path == "/api/files" -> {
-                if (!requireCapability(caps.fileVault, clientIp, "List Vault Files", out)) return
-                val arr = JSONArray()
-                vaultFileManager.listFiles().forEach { item ->
-                    arr.put(
-                        JSONObject()
-                            .put("name", item.name)
-                            .put("sizeBytes", item.sizeBytes)
-                            .put("lastModifiedMs", item.lastModifiedMs)
-                            .put("mimeType", item.mimeType)
-                    )
+                if (!requireCapability(caps.fileVault, clientIp, "Browse Vault Files", out)) return
+                val reqPath = vaultFileManager.normalizeRelativePath(req.query["path"].orEmpty())
+                val entries = vaultFileManager.listEntries(reqPath)
+                val entriesArr = JSONArray()
+                val filesOnlyArr = JSONArray()
+                entries.forEach { item ->
+                    val obj = JSONObject()
+                        .put("name", item.name)
+                        .put("relativePath", item.relativePath)
+                        .put("isDirectory", item.isDirectory)
+                        .put("sizeBytes", item.sizeBytes)
+                        .put("lastModifiedMs", item.lastModifiedMs)
+                        .put("mimeType", item.mimeType)
+                    entriesArr.put(obj)
+                    if (!item.isDirectory) filesOnlyArr.put(obj)
                 }
-                sendJson(out, 200, JSONObject().put("files", arr))
+                sendJson(
+                    out,
+                    200,
+                    JSONObject()
+                        .put("currentPath", reqPath)
+                        .put("freeSpaceBytes", vaultFileManager.freeSpaceBytes())
+                        .put("entries", entriesArr)
+                        .put("files", filesOnlyArr)
+                )
             }
 
-            req.method == "POST" && req.path == "/api/files/upload" -> {
-                if (!requireCapability(caps.fileVault, clientIp, "Upload Vault File", out)) return
-                val rawName = req.query["name"].orEmpty().ifBlank { "upload_${System.currentTimeMillis()}.bin" }
-                val res = vaultFileManager.saveBytes(rawName, req.body)
+            req.method == "POST" && req.path == "/api/files/mkdir" -> {
+                if (!requireCapability(caps.fileVault, clientIp, "Create Vault Folder", out)) return
+                val body = parseJson(bodyBytes)
+                val dirPath = body.optString("path", "")
+                val folderName = body.optString("name", "")
+                if (folderName.isBlank()) {
+                    sendJson(out, 400, JSONObject().put("error", "Folder name cannot be empty"))
+                    return
+                }
+                val res = vaultFileManager.createFolder(dirPath, folderName)
                 if (res.isSuccess) {
-                    val saved = res.getOrThrow()
-                    DeckLinkStateStore.logCommand(clientIp, "File Uploaded", "${saved.name} (${saved.sizeBytes} B)", LogStatus.ALLOWED)
-                    sendJson(
-                        out,
-                        200,
-                        JSONObject()
-                            .put("ok", true)
-                            .put("name", saved.name)
-                            .put("sizeBytes", saved.sizeBytes)
-                    )
+                    val created = res.getOrThrow()
+                    DeckLinkStateStore.logCommand(clientIp, "Folder Created", created.relativePath, LogStatus.ALLOWED)
+                    sendJson(out, 200, JSONObject().put("ok", true).put("name", created.name).put("relativePath", created.relativePath))
                 } else {
-                    sendJson(out, 400, JSONObject().put("error", res.exceptionOrNull()?.message ?: "Upload failed"))
+                    sendJson(out, 400, JSONObject().put("error", res.exceptionOrNull()?.message ?: "Could not create folder"))
                 }
             }
 
             req.method == "DELETE" && req.path == "/api/files" -> {
-                if (!requireCapability(caps.fileVault, clientIp, "Delete Vault File", out)) return
-                val name = req.query["name"].orEmpty()
-                val ok = vaultFileManager.deleteFile(name)
-                DeckLinkStateStore.logCommand(clientIp, "File Deleted", name, if (ok) LogStatus.ALLOWED else LogStatus.BLOCKED)
+                if (!requireCapability(caps.fileVault, clientIp, "Delete Vault Entry", out)) return
+                val target = req.query["path"]?.ifBlank { null } ?: req.query["name"].orEmpty()
+                val ok = vaultFileManager.deleteEntry(target)
+                DeckLinkStateStore.logCommand(clientIp, "File Deleted", target, if (ok) LogStatus.ALLOWED else LogStatus.BLOCKED)
                 sendJson(out, if (ok) 200 else 404, JSONObject().put("ok", ok))
             }
 
             else -> {
                 sendJson(out, 404, JSONObject().put("error", "Endpoint not found"))
             }
+        }
+    }
+
+    private fun validateBearerOrTicket(req: HttpHeader) =
+        DeckLinkStateStore.validateBearerToken(extractBearer(req.headers))
+            ?: DeckLinkStateStore.validateStreamTicket(req.query["ticket"])
+
+    /**
+     * Ultra-fast zero-RAM-buffering streaming file download with HTTP Range (206) support.
+     */
+    private fun streamFileDownload(
+        socket: Socket,
+        out: OutputStream,
+        file: File,
+        rangeHeader: String?,
+        inline: Boolean
+    ) {
+        socket.soTimeout = 0
+        val totalSize = file.length()
+        val mime = vaultFileManager.guessMimeType(file.name)
+        val safeFilename = file.name.replace("\"", "")
+        val disposition = if (inline) "inline" else "attachment"
+
+        var start = 0L
+        var end = (totalSize - 1L).coerceAtLeast(0L)
+        var isPartial = false
+
+        if (!rangeHeader.isNullOrBlank() && rangeHeader.startsWith("bytes=", ignoreCase = true) && totalSize > 0L) {
+            val spec = rangeHeader.substring(6).substringBefore(',').trim()
+            val dash = spec.indexOf('-')
+            if (dash >= 0) {
+                val sPart = spec.substring(0, dash).trim()
+                val ePart = spec.substring(dash + 1).trim()
+                val parsedStart = sPart.toLongOrNull()
+                val parsedEnd = ePart.toLongOrNull()
+                if (parsedStart != null) {
+                    start = parsedStart.coerceIn(0L, totalSize - 1L)
+                    end = (parsedEnd ?: (totalSize - 1L)).coerceIn(start, totalSize - 1L)
+                    isPartial = true
+                } else if (parsedEnd != null && parsedEnd > 0L) {
+                    start = (totalSize - parsedEnd).coerceAtLeast(0L)
+                    end = totalSize - 1L
+                    isPartial = true
+                }
+            }
+        }
+
+        val contentLen = if (totalSize == 0L) 0L else (end - start + 1L)
+        val header = buildString {
+            append(if (isPartial) "HTTP/1.1 206 Partial Content\r\n" else "HTTP/1.1 200 OK\r\n")
+            append("Content-Type: $mime\r\n")
+            append("Content-Length: $contentLen\r\n")
+            append("Accept-Ranges: bytes\r\n")
+            if (isPartial) {
+                append("Content-Range: bytes $start-$end/$totalSize\r\n")
+            }
+            append("Content-Disposition: $disposition; filename=\"$safeFilename\"\r\n")
+            append("Cache-Control: no-store\r\n")
+            append("X-Content-Type-Options: nosniff\r\n")
+            append("Connection: close\r\n\r\n")
+        }
+        out.write(header.toByteArray(Charsets.US_ASCII))
+        out.flush()
+
+        if (contentLen <= 0L) return
+
+        RandomAccessFile(file, "r").use { raf ->
+            raf.seek(start)
+            val buffer = ByteArray(IO_BUFFER_BYTES)
+            var remaining = contentLen
+            while (remaining > 0L && !socket.isClosed) {
+                val toRead = minOf(buffer.size.toLong(), remaining).toInt()
+                val read = raf.read(buffer, 0, toRead)
+                if (read <= 0) break
+                out.write(buffer, 0, read)
+                remaining -= read.toLong()
+            }
+            out.flush()
         }
     }
 
@@ -859,6 +979,7 @@ class DeckLinkHttpServer(
     ) {
         val reason = when (statusCode) {
             200 -> "OK"
+            206 -> "Partial Content"
             400 -> "Bad Request"
             401 -> "Unauthorized"
             403 -> "Forbidden"

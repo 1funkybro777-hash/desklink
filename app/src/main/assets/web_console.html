@@ -1,71 +1,134 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>DeckLink — Laptop Control Console</title>
+  <title>DeckLink — Laptop Control Studio</title>
   <style>
     :root {
-      --bg: #FFFFFF;
-      --fg: #000000;
+      --bg: #F3F5F8;
+      --bg-subtle: #EAEFF5;
+      --surface: #FFFFFF;
+      --surface-hover: #F8FAFC;
+      --border: #DCE2EC;
+      --border-strong: #CBD5E1;
+      --text: #0F172A;
+      --text-secondary: #475569;
+      --text-muted: #64748B;
+      --primary: #2563EB;
+      --primary-hover: #1D4ED8;
+      --primary-soft: #EFF6FF;
+      --primary-ring: rgba(37, 99, 235, 0.18);
+      --success: #059669;
+      --success-soft: #ECFDF5;
+      --danger: #DC2626;
+      --danger-soft: #FEF2F2;
+      --warning: #D97706;
+      --warning-soft: #FFFBEB;
+      --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05);
+      --shadow-md: 0 8px 24px rgba(15, 23, 42, 0.07);
+      --shadow-lg: 0 20px 50px rgba(15, 23, 42, 0.14);
+      --radius-sm: 10px;
+      --radius-md: 14px;
+      --radius-lg: 20px;
+      --header-bg: rgba(255, 255, 255, 0.86);
+    }
+
+    html[data-theme="dark"] {
+      --bg: #0B0F17;
+      --bg-subtle: #111827;
+      --surface: #141B29;
+      --surface-hover: #1B2538;
+      --border: #233047;
+      --border-strong: #324360;
+      --text: #F1F5F9;
+      --text-secondary: #CBD5E1;
+      --text-muted: #94A3B8;
+      --primary: #3B82F6;
+      --primary-hover: #60A5FA;
+      --primary-soft: rgba(59, 130, 246, 0.16);
+      --primary-ring: rgba(59, 130, 246, 0.28);
+      --success: #10B981;
+      --success-soft: rgba(16, 185, 129, 0.16);
+      --danger: #F87171;
+      --danger-soft: rgba(248, 113, 113, 0.15);
+      --warning: #FBBF24;
+      --warning-soft: rgba(251, 191, 36, 0.15);
+      --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+      --shadow-md: 0 10px 28px rgba(0, 0, 0, 0.38);
+      --shadow-lg: 0 24px 60px rgba(0, 0, 0, 0.6);
+      --header-bg: rgba(20, 27, 41, 0.86);
     }
 
     * {
       box-sizing: border-box;
       margin: 0;
       padding: 0;
-      color: #000000;
-      background-color: transparent;
     }
 
     html, body {
       width: 100%;
       min-height: 100vh;
-      background: #FFFFFF;
-      color: #000000;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, "Helvetica Neue", Arial, sans-serif;
       font-size: 14px;
-      line-height: 1.45;
+      line-height: 1.5;
       -webkit-font-smoothing: antialiased;
     }
 
-    /* Strict Monochrome: ONLY #FFFFFF background and #000000 text/borders */
-    input, textarea, select, button {
-      font-family: inherit;
-      font-size: 14px;
-      color: #000000;
-      background: #FFFFFF;
-      border: 1.5px solid #000000;
-      border-radius: 10px;
-      outline: none;
+    .mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     }
 
-    input, textarea {
-      padding: 10px 12px;
+    .hidden {
+      display: none !important;
+    }
+
+    /* Controls */
+    input, textarea, select {
+      font-family: inherit;
+      font-size: 14px;
+      color: var(--text);
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 10px 14px;
       width: 100%;
+      outline: none;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
     }
 
     input:focus, textarea:focus {
-      border-width: 2.5px;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--primary-ring);
     }
 
     button {
-      padding: 9px 14px;
+      font-family: inherit;
+      font-size: 13.5px;
       font-weight: 600;
+      color: var(--text);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 9px 14px;
+      min-height: 38px;
       cursor: pointer;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      gap: 6px;
-      min-height: 40px;
-      transition: transform 0.08s ease;
+      gap: 7px;
+      transition: background 0.15s ease, border-color 0.15s ease, transform 0.08s ease, color 0.15s ease;
+      white-space: nowrap;
     }
 
-    button:hover {
-      border-width: 2.5px;
+    button:hover:not(:disabled) {
+      background: var(--surface-hover);
+      border-color: var(--border-strong);
     }
 
-    button:active {
+    button:active:not(:disabled) {
       transform: scale(0.98);
     }
 
@@ -74,134 +137,219 @@
       cursor: not-allowed;
     }
 
-    button.active-btn {
-      border: 2.5px solid #000000;
-      text-decoration: underline;
-      text-underline-offset: 3px;
-      font-weight: 800;
+    button.btn-primary {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #FFFFFF;
+    }
+
+    button.btn-primary:hover:not(:disabled) {
+      background: var(--primary-hover);
+      border-color: var(--primary-hover);
+      color: #FFFFFF;
+    }
+
+    button.btn-soft {
+      background: var(--primary-soft);
+      border-color: transparent;
+      color: var(--primary);
+    }
+
+    button.btn-soft:hover:not(:disabled) {
+      border-color: var(--primary);
+    }
+
+    button.btn-danger {
+      background: var(--danger-soft);
+      border-color: transparent;
+      color: var(--danger);
+    }
+
+    button.btn-danger:hover:not(:disabled) {
+      border-color: var(--danger);
+    }
+
+    button.active-pill {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #FFFFFF;
+    }
+
+    button svg {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
     }
 
     input[type="range"] {
       -webkit-appearance: none;
       appearance: none;
       width: 100%;
-      height: 8px;
-      border: 1.5px solid #000000;
+      height: 6px;
       border-radius: 999px;
-      background: #FFFFFF;
+      border: none;
+      background: var(--border);
       padding: 0;
     }
 
     input[type="range"]::-webkit-slider-thumb {
       -webkit-appearance: none;
-      appearance: none;
-      width: 20px;
-      height: 20px;
+      width: 18px;
+      height: 18px;
       border-radius: 50%;
-      background: #FFFFFF;
-      border: 2.5px solid #000000;
+      background: var(--primary);
+      border: 2.5px solid #FFFFFF;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
       cursor: pointer;
     }
 
-    input[type="range"]::-moz-range-thumb {
-      width: 20px;
-      height: 20px;
-      border-radius: 50%;
-      background: #FFFFFF;
-      border: 2.5px solid #000000;
-      cursor: pointer;
-    }
-
-    .hidden {
-      display: none !important;
-    }
-
-    .mono {
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-    }
-
-    /* Pairing Screen */
+    /* ================= PAIRING SCREEN ================= */
     #pairView {
       min-height: 100vh;
       display: flex;
       align-items: center;
       justify-content: center;
       padding: 24px;
-      background: #FFFFFF;
+      background:
+        radial-gradient(circle at 20% 20%, rgba(37, 99, 235, 0.11), transparent 46%),
+        radial-gradient(circle at 80% 80%, rgba(14, 165, 233, 0.1), transparent 44%),
+        var(--bg);
     }
 
     .pair-card {
       width: 100%;
       max-width: 440px;
-      border: 2px solid #000000;
-      border-radius: 16px;
-      padding: 28px;
-      background: #FFFFFF;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 34px 30px;
+      box-shadow: var(--shadow-lg);
       display: flex;
       flex-direction: column;
-      gap: 16px;
+      gap: 20px;
+    }
+
+    .pair-brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .brand-logo-box {
+      width: 46px;
+      height: 46px;
+      border-radius: 14px;
+      background: #1B2A4A;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 6px 16px rgba(27, 42, 74, 0.28);
+      flex-shrink: 0;
     }
 
     .pair-title {
-      font-size: 26px;
+      font-size: 22px;
       font-weight: 800;
       letter-spacing: -0.02em;
     }
 
     .pair-sub {
-      font-size: 14px;
-      border-bottom: 1px solid #000000;
-      padding-bottom: 12px;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    .pair-device-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 12px;
+      background: var(--bg-subtle);
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--success);
+      flex-shrink: 0;
+    }
+
+    .status-dot.off {
+      background: var(--text-muted);
     }
 
     .pin-input {
       font-size: 28px;
       font-weight: 800;
       text-align: center;
-      letter-spacing: 0.35em;
+      letter-spacing: 0.36em;
       padding: 14px;
-      border: 2px solid #000000;
+      border-radius: 14px;
     }
 
-    .error-box {
-      border: 2px dashed #000000;
-      border-radius: 10px;
-      padding: 10px 12px;
-      font-weight: 600;
+    .alert-box {
+      border-radius: 12px;
+      padding: 11px 14px;
       font-size: 13px;
+      font-weight: 600;
+      background: var(--danger-soft);
+      color: var(--danger);
+      border: 1px solid rgba(220, 38, 38, 0.2);
     }
 
-    /* Main Workspace Layout */
+    .alert-box.info {
+      background: var(--primary-soft);
+      color: var(--primary);
+      border-color: rgba(37, 99, 235, 0.22);
+    }
+
+    /* ================= MAIN WORKSPACE ================= */
     #consoleView {
       min-height: 100vh;
       display: flex;
       flex-direction: column;
-      background: #FFFFFF;
     }
 
     .topbar {
       position: sticky;
       top: 0;
-      z-index: 20;
-      background: #FFFFFF;
-      border-bottom: 2px solid #000000;
-      padding: 12px 20px;
+      z-index: 30;
+      height: 64px;
+      background: var(--header-bg);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 22px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 12px;
-      flex-wrap: wrap;
+      gap: 14px;
     }
 
-    .brand-group {
+    .topbar-left {
       display: flex;
       align-items: center;
       gap: 12px;
-      flex-wrap: wrap;
+      min-width: 0;
     }
 
-    .brand-name {
-      font-size: 20px;
+    .topbar-logo {
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      background: #1B2A4A;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .topbar-brand {
+      font-size: 17px;
       font-weight: 800;
       letter-spacing: -0.02em;
     }
@@ -209,16 +357,23 @@
     .pill {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
-      border: 1.5px solid #000000;
+      gap: 7px;
+      padding: 5px 11px;
       border-radius: 999px;
-      padding: 4px 12px;
+      background: var(--bg-subtle);
+      color: var(--text-secondary);
       font-size: 12px;
-      font-weight: 700;
-      background: #FFFFFF;
+      font-weight: 600;
+      border: 1px solid var(--border);
     }
 
-    .topbar-actions {
+    .pill.live {
+      background: var(--success-soft);
+      color: var(--success);
+      border-color: rgba(16, 185, 129, 0.28);
+    }
+
+    .topbar-right {
       display: flex;
       align-items: center;
       gap: 8px;
@@ -228,169 +383,199 @@
     .workspace {
       flex: 1;
       display: grid;
-      grid-template-columns: 240px minmax(0, 1fr);
-      min-height: calc(100vh - 66px);
+      grid-template-columns: 248px minmax(0, 1fr);
+      min-height: calc(100vh - 64px);
     }
 
-    /* Left Section Navigation */
+    /* Sidebar */
     .sidebar {
-      border-right: 2px solid #000000;
-      padding: 16px 12px;
-      background: #FFFFFF;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 18px 12px;
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: 4px;
     }
 
-    .sidebar-label {
+    .sidebar-group-title {
       font-size: 11px;
-      font-weight: 800;
+      font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.08em;
-      padding: 4px 10px 8px 10px;
-      border-bottom: 1px solid #000000;
-      margin-bottom: 6px;
+      color: var(--text-muted);
+      padding: 10px 12px 6px;
     }
 
     .nav-btn {
       width: 100%;
-      justify-content: space-between;
-      text-align: left;
+      justify-content: flex-start;
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--text-secondary);
       padding: 10px 12px;
-      border: 1px solid #000000;
-      border-radius: 10px;
+      border-radius: 12px;
       font-weight: 600;
-      font-size: 13px;
-      background: #FFFFFF;
+      font-size: 13.5px;
+    }
+
+    .nav-btn:hover {
+      background: var(--bg-subtle);
+      color: var(--text);
+      border-color: transparent;
     }
 
     .nav-btn.active {
-      border: 2.5px solid #000000;
-      font-weight: 800;
+      background: var(--primary-soft);
+      color: var(--primary);
+      border-color: transparent;
+      font-weight: 700;
     }
 
-    .nav-num {
-      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    .nav-badge {
+      margin-left: auto;
       font-size: 11px;
-      font-weight: 800;
-      border: 1px solid #000000;
-      border-radius: 6px;
-      padding: 1px 6px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: var(--bg-subtle);
+      color: var(--text-muted);
     }
 
-    /* Main Content Area */
+    .nav-btn.active .nav-badge {
+      background: var(--primary);
+      color: #FFFFFF;
+    }
+
+    /* Main Content */
     .main-area {
-      padding: 20px 24px 48px 24px;
-      background: #FFFFFF;
-      max-width: 1280px;
+      padding: 24px 28px 48px;
       width: 100%;
+      max-width: 1480px;
+      margin: 0 auto;
     }
 
     .section-page {
       display: none;
       flex-direction: column;
-      gap: 18px;
+      gap: 20px;
+      animation: fadeSlide 0.18s ease;
     }
 
     .section-page.active {
       display: flex;
     }
 
+    @keyframes fadeSlide {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
     .section-header {
-      border-bottom: 2px solid #000000;
-      padding-bottom: 12px;
       display: flex;
       align-items: flex-end;
       justify-content: space-between;
-      gap: 12px;
+      gap: 14px;
       flex-wrap: wrap;
-    }
-
-    .section-kicker {
-      font-size: 11px;
-      font-weight: 800;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      margin-bottom: 4px;
     }
 
     .section-title {
       font-size: 24px;
       font-weight: 800;
-      letter-spacing: -0.02em;
+      letter-spacing: -0.025em;
     }
 
     .section-desc {
-      font-size: 13px;
+      font-size: 13.5px;
+      color: var(--text-muted);
       margin-top: 2px;
     }
 
     /* Cards & Grids */
     .card {
-      border: 1.5px solid #000000;
-      border-radius: 14px;
-      padding: 18px;
-      background: #FFFFFF;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      box-shadow: var(--shadow-sm);
       display: flex;
       flex-direction: column;
-      gap: 14px;
+      gap: 16px;
     }
 
     .card-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 10px;
+      gap: 12px;
       flex-wrap: wrap;
-      border-bottom: 1px solid #000000;
-      padding-bottom: 10px;
     }
 
     .card-title {
       font-size: 16px;
-      font-weight: 800;
+      font-weight: 700;
     }
 
     .card-sub {
-      font-size: 12px;
+      font-size: 12.5px;
+      color: var(--text-muted);
     }
 
     .grid-2 {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 14px;
+      gap: 16px;
     }
 
     .grid-3 {
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 12px;
+      gap: 14px;
     }
 
     .grid-4 {
       display: grid;
       grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 10px;
+      gap: 14px;
     }
 
-    .stat-box {
-      border: 1.5px solid #000000;
-      border-radius: 12px;
-      padding: 12px 14px;
-      background: #FFFFFF;
+    .stat-card {
+      background: var(--bg-subtle);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
     }
 
     .stat-label {
-      font-size: 11px;
+      font-size: 11.5px;
       font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 0.05em;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
     }
 
-    .stat-value {
-      font-size: 20px;
+    .stat-val {
+      font-size: 22px;
       font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+
+    .stat-bar {
+      width: 100%;
+      height: 6px;
+      border-radius: 999px;
+      background: var(--border);
+      overflow: hidden;
       margin-top: 4px;
+    }
+
+    .stat-bar-fill {
+      height: 100%;
+      background: var(--primary);
+      border-radius: 999px;
+      transition: width 0.3s ease;
     }
 
     .btn-row {
@@ -402,295 +587,633 @@
 
     .input-row {
       display: flex;
-      gap: 8px;
+      gap: 10px;
       align-items: center;
       flex-wrap: wrap;
     }
 
     .input-row > input {
       flex: 1;
-      min-width: 180px;
+      min-width: 200px;
     }
 
-    /* Screen Mirror & Rotation Stage */
-    .mirror-stage-wrap {
-      border: 2px solid #000000;
-      border-radius: 14px;
-      padding: 16px;
-      background: #FFFFFF;
+    /* ================= YOUTUBE-STYLE FULL-SCREEN MIRROR STAGE ================= */
+    .mirror-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 12px 16px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .mirror-cinema-stage {
+      position: relative;
+      width: 100%;
+      height: 74vh;
+      min-height: 460px;
+      background: #07090E;
+      border-radius: 20px;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow-md);
+      user-select: none;
+    }
+
+    .mirror-cinema-stage.landscape-stage {
+      height: 78vh;
+      min-height: 520px;
+    }
+
+    .mirror-cinema-stage:fullscreen {
+      width: 100vw !important;
+      height: 100vh !important;
+      max-width: none !important;
+      max-height: none !important;
+      border-radius: 0 !important;
+      border: none !important;
+      background: #000000;
+    }
+
+    #mirrorCanvas {
+      display: block;
+      cursor: crosshair;
+      touch-action: none;
+      background: #000000;
+      border-radius: 6px;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+    }
+
+    .mirror-cinema-stage:fullscreen #mirrorCanvas {
+      border-radius: 0;
+      box-shadow: none;
+    }
+
+    /* YouTube-style auto-hiding floating HUD overlay */
+    .mirror-hud {
+      position: absolute;
+      left: 16px;
+      right: 16px;
+      bottom: 16px;
+      background: rgba(15, 23, 42, 0.82);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 16px;
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+      color: #FFFFFF;
+      opacity: 1;
+      transition: opacity 0.25s ease, transform 0.25s ease;
+      z-index: 10;
+    }
+
+    .mirror-cinema-stage.hud-hidden .mirror-hud {
+      opacity: 0;
+      transform: translateY(10px);
+      pointer-events: none;
+    }
+
+    .mirror-hud button {
+      background: rgba(255, 255, 255, 0.12);
+      border-color: rgba(255, 255, 255, 0.18);
+      color: #FFFFFF;
+      min-height: 34px;
+      padding: 6px 11px;
+      font-size: 12.5px;
+    }
+
+    .mirror-hud button:hover {
+      background: rgba(255, 255, 255, 0.24);
+      border-color: rgba(255, 255, 255, 0.36);
+    }
+
+    .mirror-hud button.active-pill {
+      background: #3B82F6;
+      border-color: #60A5FA;
+      color: #FFFFFF;
+    }
+
+    .mirror-hud-status {
+      font-size: 12px;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.86);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* ================= FAST UNLIMITED FILE BROWSER ================= */
+    .dropzone {
+      border: 2px dashed var(--border-strong);
+      border-radius: 18px;
+      padding: 26px 20px;
+      background: var(--bg-subtle);
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 12px;
-      min-height: 460px;
+      gap: 10px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.15s ease, background 0.15s ease;
     }
 
-    .mirror-stage-wrap:fullscreen {
-      background: #FFFFFF;
-      padding: 20px;
-      width: 100vw;
-      height: 100vh;
+    .dropzone.dragover {
+      border-color: var(--primary);
+      background: var(--primary-soft);
     }
 
-    #mirrorCanvas {
-      border: 2px solid #000000;
-      border-radius: 10px;
-      background: #FFFFFF;
-      cursor: crosshair;
-      touch-action: none;
-      max-width: 100%;
-      max-height: 68vh;
-      display: block;
-    }
-
-    .mirror-stage-wrap:fullscreen #mirrorCanvas {
-      max-height: 82vh;
-      max-width: 94vw;
-    }
-
-    .mirror-meta {
-      font-size: 12px;
-      font-weight: 600;
+    .breadcrumb-bar {
       display: flex;
+      align-items: center;
+      gap: 6px;
       flex-wrap: wrap;
-      gap: 12px;
-      justify-content: center;
+      padding: 10px 14px;
+      background: var(--bg-subtle);
+      border: 1px solid var(--border);
+      border-radius: 12px;
     }
 
-    /* Audio Visualizer Canvas */
-    #audioWaveCanvas {
-      width: 100%;
-      height: 120px;
-      border: 1.5px solid #000000;
-      border-radius: 10px;
-      background: #FFFFFF;
-      display: block;
+    .crumb-btn {
+      min-height: 28px;
+      padding: 4px 10px;
+      font-size: 12.5px;
+      border-radius: 8px;
+      border-color: transparent;
+      background: transparent;
     }
 
-    .slider-block {
+    .crumb-btn:hover {
+      background: var(--surface);
+      border-color: var(--border);
+    }
+
+    .crumb-sep {
+      color: var(--text-muted);
+      font-size: 12px;
+    }
+
+    .upload-queue {
       display: flex;
       flex-direction: column;
-      gap: 6px;
-      border: 1px solid #000000;
-      border-radius: 10px;
-      padding: 12px;
+      gap: 10px;
     }
 
-    .slider-top {
-      display: flex;
-      justify-content: space-between;
-      font-size: 13px;
-      font-weight: 700;
-    }
-
-    /* Lists */
-    .item-list {
+    .upload-item {
+      background: var(--bg-subtle);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px 14px;
       display: flex;
       flex-direction: column;
       gap: 8px;
     }
 
-    .list-row {
-      border: 1.5px solid #000000;
-      border-radius: 10px;
-      padding: 10px 14px;
+    .upload-item-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .progress-track {
+      width: 100%;
+      height: 8px;
+      border-radius: 999px;
+      background: var(--border);
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #2563EB, #0EA5E9);
+      border-radius: 999px;
+      width: 0%;
+      transition: width 0.12s linear;
+    }
+
+    .file-row {
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 12px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      transition: background 0.12s ease, border-color 0.12s ease;
       flex-wrap: wrap;
-      background: #FFFFFF;
     }
 
-    .list-row-info {
+    .file-row:hover {
+      background: var(--surface-hover);
+      border-color: var(--border-strong);
+    }
+
+    .file-row-left {
       display: flex;
-      flex-direction: column;
-      gap: 2px;
+      align-items: center;
+      gap: 12px;
       min-width: 0;
       flex: 1;
+      cursor: pointer;
     }
 
-    .list-row-title {
+    .file-badge {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 800;
+      flex-shrink: 0;
+      background: var(--primary-soft);
+      color: var(--primary);
+    }
+
+    .file-badge.folder {
+      background: var(--warning-soft);
+      color: var(--warning);
+    }
+
+    .file-badge.media {
+      background: var(--success-soft);
+      color: var(--success);
+    }
+
+    .file-name {
       font-weight: 700;
       font-size: 14px;
       word-break: break-word;
     }
 
-    .list-row-sub {
+    .file-meta {
       font-size: 12px;
-      word-break: break-word;
+      color: var(--text-muted);
     }
 
-    .apps-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    /* ================= AUDIO VISUALIZER ================= */
+    #audioWaveCanvas {
+      width: 100%;
+      height: 140px;
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      background: #0B1120;
+      display: block;
+    }
+
+    .slider-card {
+      background: var(--bg-subtle);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
       gap: 10px;
     }
 
-    .app-card {
-      border: 1.5px solid #000000;
+    .slider-head {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    /* ================= APPS GRID ================= */
+    .apps-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+      gap: 12px;
+    }
+
+    .app-tile {
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 12px 14px;
+      background: var(--surface);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      transition: transform 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+    }
+
+    .app-tile:hover {
+      border-color: var(--primary);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .app-monogram {
+      width: 40px;
+      height: 40px;
       border-radius: 12px;
-      padding: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 15px;
+      color: #FFFFFF;
+      flex-shrink: 0;
+    }
+
+    .app-info {
+      min-width: 0;
+      flex: 1;
+    }
+
+    .app-name {
+      font-weight: 700;
+      font-size: 13.5px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .app-pkg {
+      font-size: 11px;
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Preview Lightbox Modal */
+    #previewModal {
+      position: fixed;
+      inset: 0;
+      z-index: 90;
+      background: rgba(7, 10, 18, 0.84);
+      backdrop-filter: blur(8px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .preview-dialog {
+      width: 100%;
+      max-width: 960px;
+      max-height: 90vh;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      box-shadow: var(--shadow-lg);
+    }
+
+    .preview-head {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 10px;
-      background: #FFFFFF;
+      gap: 12px;
     }
 
-    .app-card-text {
-      min-width: 0;
+    .preview-body {
       flex: 1;
+      overflow: auto;
+      padding: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #080B12;
+      min-height: 300px;
     }
 
-    .app-card-name {
-      font-weight: 700;
-      font-size: 14px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+    .preview-body img, .preview-body video {
+      max-width: 100%;
+      max-height: 74vh;
+      border-radius: 10px;
     }
 
-    .app-card-pkg {
-      font-size: 11px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+    .preview-body audio {
+      width: 100%;
+      max-width: 520px;
     }
 
     /* Toast */
     #toast {
       position: fixed;
-      right: 20px;
-      bottom: 20px;
-      z-index: 99;
-      background: #FFFFFF;
-      color: #000000;
-      border: 2.5px solid #000000;
-      border-radius: 12px;
-      padding: 12px 16px;
-      font-weight: 700;
+      right: 22px;
+      bottom: 22px;
+      z-index: 100;
+      background: #0F172A;
+      color: #FFFFFF;
+      border-radius: 14px;
+      padding: 12px 18px;
+      font-weight: 600;
       font-size: 13px;
-      max-width: 360px;
-      display: none;
+      box-shadow: var(--shadow-lg);
+      max-width: 380px;
+      opacity: 0;
+      transform: translateY(10px);
+      pointer-events: none;
+      transition: opacity 0.2s ease, transform 0.2s ease;
     }
 
     #toast.show {
-      display: block;
+      opacity: 1;
+      transform: translateY(0);
     }
 
-    /* Responsive */
-    @media (max-width: 900px) {
+    @media (max-width: 960px) {
       .workspace {
         grid-template-columns: 1fr;
       }
       .sidebar {
         border-right: none;
-        border-bottom: 2px solid #000000;
+        border-bottom: 1px solid var(--border);
         flex-direction: row;
-        flex-wrap: wrap;
+        overflow-x: auto;
+        padding: 10px;
       }
-      .sidebar-label {
-        width: 100%;
+      .sidebar-group-title {
+        display: none;
       }
       .nav-btn {
         width: auto;
-        flex: 1 1 150px;
+        flex-shrink: 0;
       }
       .grid-2, .grid-3, .grid-4 {
         grid-template-columns: 1fr;
+      }
+      .main-area {
+        padding: 16px;
       }
     }
   </style>
 </head>
 <body>
 
-  <!-- Hidden live MJPEG source image painted onto the rotatable canvas -->
+  <!-- Hidden live MJPEG feed painted onto the YouTube-style rotatable full-screen canvas -->
   <img id="mjpegSource" alt="" style="position:fixed;left:-99999px;top:-99999px;width:1px;height:1px;opacity:0;pointer-events:none;" />
 
-  <!-- PAIRING GATE -->
+  <!-- ================= PAIRING SCREEN ================= -->
   <div id="pairView">
     <div class="pair-card">
-      <div>
-        <div class="section-kicker">DeckLink Local Control Console</div>
-        <div class="pair-title">Pair With Your Phone</div>
+      <div class="pair-brand">
+        <div class="brand-logo-box">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+            <rect x="2.5" y="5" width="14" height="10" rx="2" stroke="#60A5FA" stroke-width="2"/>
+            <path d="M1 17.5H17.5" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round"/>
+            <rect x="17" y="8" width="8.5" height="15" rx="2" fill="#1B2A4A" stroke="#FFFFFF" stroke-width="2"/>
+            <path d="M10 6.5C13.5 3.2 19 3.5 21.5 6.8" stroke="#38BDF8" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div>
+          <div class="pair-title">DeckLink Studio</div>
+          <div class="pair-sub">Laptop Control &amp; High-Speed Bridge</div>
+        </div>
       </div>
-      <div class="pair-sub" id="pairDeviceInfo">Detecting phone on local network...</div>
-      <div>
-        <label for="pinInput" style="display:block;font-weight:700;margin-bottom:6px;">Enter 6-Digit Pairing PIN</label>
-        <input id="pinInput" class="pin-input mono" type="password" inputmode="numeric" maxlength="6" placeholder="000000" autocomplete="off" />
+
+      <div class="pair-device-pill">
+        <span class="status-dot" id="pairStatusDot"></span>
+        <span id="pairDeviceInfo">Detecting phone on local network...</span>
       </div>
-      <button id="pairBtn" type="button" style="width:100%;font-weight:800;">Connect Laptop Console</button>
-      <div id="pairError" class="error-box hidden"></div>
-      <div style="font-size:12px;">
-        Open DeckLink on your phone, turn on the Host Server, and enter the 6-digit PIN shown in Section 2.
+
+      <div>
+        <label for="pinInput" style="display:block;font-weight:700;font-size:13px;margin-bottom:8px;color:var(--text-secondary);">
+          Enter 6-Digit Pairing PIN from Phone
+        </label>
+        <input id="pinInput" class="pin-input mono" type="password" inputmode="numeric" maxlength="6" placeholder="••••••" autocomplete="off" />
+      </div>
+
+      <button id="pairBtn" class="btn-primary" type="button" style="width:100%;min-height:46px;font-size:15px;">
+        Connect to Phone
+      </button>
+
+      <div id="pairError" class="alert-box hidden"></div>
+
+      <div class="pair-sub" style="text-align:center;">
+        Open DeckLink on your Android phone, tap <b>App streaming</b> or <b>Mobile desktop</b>, and enter the PIN shown.
       </div>
     </div>
   </div>
 
-  <!-- MAIN CONSOLE -->
+  <!-- ================= MAIN DESKTOP STUDIO ================= -->
   <div id="consoleView" class="hidden">
     <header class="topbar">
-      <div class="brand-group">
-        <span class="brand-name">DeckLink</span>
-        <span class="pill" id="topDevicePill">Phone Connected</span>
+      <div class="topbar-left">
+        <div class="topbar-logo">
+          <svg width="20" height="20" viewBox="0 0 28 28" fill="none">
+            <rect x="2.5" y="5" width="14" height="10" rx="2" stroke="#60A5FA" stroke-width="2.2"/>
+            <path d="M1 17.5H17.5" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round"/>
+            <rect x="17" y="8" width="8.5" height="15" rx="2" fill="#1B2A4A" stroke="#FFFFFF" stroke-width="2.2"/>
+            <path d="M10 6.5C13.5 3.2 19 3.5 21.5 6.8" stroke="#38BDF8" stroke-width="2.2" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <span class="topbar-brand">DeckLink</span>
+        <span class="pill" id="topDevicePill"><span class="status-dot"></span><span>Connected</span></span>
         <span class="pill" id="topMirrorPill">Mirror: Standby</span>
-        <span class="pill" id="topAudioPill">Laptop Sound: Off</span>
+        <span class="pill" id="topAudioPill">Audio: Off</span>
       </div>
-      <div class="topbar-actions">
-        <button id="topQuickAudioBtn" type="button">Start Phone Sound</button>
-        <button id="topRefreshBtn" type="button">Refresh</button>
-        <button id="logoutBtn" type="button">Disconnect</button>
+      <div class="topbar-right">
+        <button id="topQuickAudioBtn" class="btn-soft" type="button">Listen to Phone</button>
+        <button id="themeToggleBtn" type="button">Dark Mode</button>
+        <button id="logoutBtn" class="btn-danger" type="button">Disconnect</button>
       </div>
     </header>
 
     <div class="workspace">
-      <!-- Dedicated Navigation for Every Single Feature Section -->
-      <nav class="sidebar" aria-label="Feature Sections">
-        <div class="sidebar-label">Feature Sections</div>
+      <aside class="sidebar" aria-label="Workspace Sections">
+        <div class="sidebar-group-title">Workspace</div>
         <button class="nav-btn active" data-section="overview" type="button">
-          <span>Overview &amp; Search</span><span class="nav-num">01</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+          <span>Dashboard</span>
         </button>
         <button class="nav-btn" data-section="mirror" type="button">
-          <span>Screen Mirror &amp; Rotate</span><span class="nav-num">02</span>
-        </button>
-        <button class="nav-btn" data-section="audio" type="button">
-          <span>Live Phone Sound</span><span class="nav-num">03</span>
-        </button>
-        <button class="nav-btn" data-section="apps" type="button">
-          <span>Apps Launcher</span><span class="nav-num">04</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="14" rx="2"/><path d="M8 21h8M12 18v3"/></svg>
+          <span>Screen Mirror</span>
+          <span class="nav-badge" id="navMirrorBadge">0°</span>
         </button>
         <button class="nav-btn" data-section="files" type="button">
-          <span>File Transfer Vault</span><span class="nav-num">05</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+          <span>File Browser</span>
+          <span class="nav-badge" id="navFilesBadge">Fast</span>
+        </button>
+        <button class="nav-btn" data-section="audio" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/></svg>
+          <span>Phone Sound</span>
+        </button>
+
+        <div class="sidebar-group-title">Phone Control</div>
+        <button class="nav-btn" data-section="apps" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="2"/><circle cx="12" cy="6" r="2"/><circle cx="18" cy="6" r="2"/><circle cx="6" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="18" cy="12" r="2"/><circle cx="6" cy="18" r="2"/><circle cx="12" cy="18" r="2"/><circle cx="18" cy="18" r="2"/></svg>
+          <span>App Streaming</span>
         </button>
         <button class="nav-btn" data-section="clipboard" type="button">
-          <span>Clipboard Sync</span><span class="nav-num">06</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="8" y="3" width="8" height="4" rx="1"/><path d="M16 5h2a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2"/></svg>
+          <span>Clipboard Sync</span>
         </button>
         <button class="nav-btn" data-section="notifications" type="button">
-          <span>Notifications</span><span class="nav-num">07</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          <span>Notifications</span>
+          <span class="nav-badge" id="navNotifBadge">0</span>
         </button>
         <button class="nav-btn" data-section="hardware" type="button">
-          <span>Hardware &amp; Macros</span><span class="nav-num">08</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+          <span>Hardware &amp; Macros</span>
         </button>
         <button class="nav-btn" data-section="inspector" type="button">
-          <span>UI Inspector</span><span class="nav-num">09</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+          <span>UI Inspector</span>
         </button>
-      </nav>
+      </aside>
 
       <main class="main-area">
 
-        <!-- SECTION 01: OVERVIEW & SEARCH -->
+        <!-- ================= 01. DASHBOARD ================= -->
         <section id="sec-overview" class="section-page active">
           <div class="section-header">
             <div>
-              <div class="section-kicker">Section 01</div>
-              <h1 class="section-title">Overview &amp; Search Everywhere</h1>
-              <p class="section-desc">Live phone health, service readiness, and instant search across phone apps and files.</p>
+              <h1 class="section-title">Phone Control Dashboard</h1>
+              <p class="section-desc" id="overviewModelSub">Connected to Android phone</p>
             </div>
             <div class="btn-row">
-              <button type="button" data-jump="mirror">Open Screen Mirror &amp; Rotate</button>
-              <button type="button" data-jump="audio">Open Live Phone Sound</button>
+              <button class="btn-primary" type="button" data-jump="mirror">Open Full-Screen Mirror</button>
+              <button class="btn-soft" type="button" data-jump="files">Open Fast File Browser</button>
+              <button type="button" data-jump="audio">Phone Sound</button>
+            </div>
+          </div>
+
+          <div class="grid-4">
+            <div class="stat-card">
+              <span class="stat-label">Battery</span>
+              <span class="stat-val" id="statBattery">--</span>
+              <div class="stat-bar"><div class="stat-bar-fill" id="barBattery" style="width:0%"></div></div>
+            </div>
+            <div class="stat-card">
+              <span class="stat-label">Memory (RAM)</span>
+              <span class="stat-val" id="statRam">--</span>
+              <div class="stat-bar"><div class="stat-bar-fill" id="barRam" style="width:0%"></div></div>
+            </div>
+            <div class="stat-card">
+              <span class="stat-label">Phone Storage</span>
+              <span class="stat-val" id="statStorage">--</span>
+              <div class="stat-bar"><div class="stat-bar-fill" id="barStorage" style="width:0%"></div></div>
+            </div>
+            <div class="stat-card">
+              <span class="stat-label">Device Temp &amp; Net</span>
+              <span class="stat-val" id="statTemp">--</span>
+              <span class="card-sub" id="overviewNetworkSub">Checking network...</span>
             </div>
           </div>
 
@@ -698,412 +1221,392 @@
             <div class="card-header">
               <div>
                 <div class="card-title">Search Everywhere</div>
-                <div class="card-sub">Find installed phone apps and File Vault documents from one box</div>
+                <div class="card-sub">Instantly search phone apps and shared Vault files from your laptop</div>
               </div>
               <button id="refreshSearchIndexBtn" type="button">Sync Index</button>
             </div>
             <div class="input-row">
-              <input id="globalSearchInput" type="text" placeholder="Search phone apps or files..." />
+              <input id="globalSearchInput" type="text" placeholder="Search apps or files on your phone..." />
               <button id="globalSearchClearBtn" type="button">Clear</button>
             </div>
-            <div id="globalSearchResults" class="item-list"></div>
+            <div id="globalSearchResults" style="display:flex;flex-direction:column;gap:8px;"></div>
           </div>
 
-          <div class="card">
-            <div class="card-header">
-              <div>
-                <div class="card-title">Live Phone Telemetry</div>
-                <div class="card-sub" id="overviewModelSub">Reading phone telemetry...</div>
-              </div>
-              <span class="pill" id="overviewNetworkPill">Network</span>
+          <div class="grid-4">
+            <div class="stat-card">
+              <span class="stat-label">Screen Mirror</span>
+              <span class="stat-val" style="font-size:16px;" id="statMirrorReady">Standby</span>
             </div>
-            <div class="grid-4">
-              <div class="stat-box">
-                <div class="stat-label">Battery</div>
-                <div class="stat-value" id="statBattery">--</div>
-              </div>
-              <div class="stat-box">
-                <div class="stat-label">RAM Usage</div>
-                <div class="stat-value" id="statRam">--</div>
-              </div>
-              <div class="stat-box">
-                <div class="stat-label">Storage</div>
-                <div class="stat-value" id="statStorage">--</div>
-              </div>
-              <div class="stat-box">
-                <div class="stat-label">Temperature</div>
-                <div class="stat-value" id="statTemp">--</div>
-              </div>
+            <div class="stat-card">
+              <span class="stat-label">Phone Audio Bridge</span>
+              <span class="stat-val" style="font-size:16px;" id="statAudioReady">Standby</span>
             </div>
-            <div class="grid-4">
-              <div class="stat-box">
-                <div class="stat-label">Screen Mirror</div>
-                <div class="stat-value" style="font-size:15px;" id="statMirrorReady">--</div>
-              </div>
-              <div class="stat-box">
-                <div class="stat-label">Phone Audio Capture</div>
-                <div class="stat-value" style="font-size:15px;" id="statAudioReady">--</div>
-              </div>
-              <div class="stat-box">
-                <div class="stat-label">Remote Touch</div>
-                <div class="stat-value" style="font-size:15px;" id="statTouchReady">--</div>
-              </div>
-              <div class="stat-box">
-                <div class="stat-label">Mirror Angle</div>
-                <div class="stat-value" style="font-size:15px;" id="statRotationReady">0°</div>
-              </div>
+            <div class="stat-card">
+              <span class="stat-label">Remote Touch</span>
+              <span class="stat-val" style="font-size:16px;" id="statTouchReady">Standby</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-label">Vault Free Space</span>
+              <span class="stat-val" style="font-size:16px;" id="statVaultFree">--</span>
             </div>
           </div>
         </section>
 
-        <!-- SECTION 02: SCREEN MIRROR & ROTATION (DEDICATED WHOLE SECTION) -->
+        <!-- ================= 02. YOUTUBE-STYLE FULL-SCREEN MIRROR & ROTATION ================= -->
         <section id="sec-mirror" class="section-page">
           <div class="section-header">
             <div>
-              <div class="section-kicker">Section 02 — Dedicated Display &amp; Orientation Control</div>
-              <h1 class="section-title">Screen Mirror &amp; Rotation</h1>
-              <p class="section-desc">Rotate the mirrored phone screen to any angle (0°, 90°, 180°, 270°) with exact rotated touch, drag, and swipe mapping.</p>
+              <h1 class="section-title">Live Screen Mirror &amp; Rotation</h1>
+              <p class="section-desc">Rotate to full widescreen (like YouTube fullscreen), double-click or press <b>F</b> for 100% edge-to-edge fullscreen.</p>
             </div>
             <div class="btn-row">
-              <span class="pill" id="mirrorAngleBadge">Angle: 0° (Portrait)</span>
+              <button id="mirrorFullscreenBtn" class="btn-primary" type="button">Fullscreen (F)</button>
+              <button id="mirrorScaleModeBtn" class="btn-soft" type="button">Scale: Fit</button>
               <button id="mirrorQuickAudioBtn" type="button">Phone Sound: Off</button>
-              <button id="mirrorFullscreenBtn" type="button">Fullscreen</button>
             </div>
           </div>
 
-          <!-- Dedicated Rotation Controls Panel -->
-          <div class="card">
-            <div class="card-header">
-              <div>
-                <div class="card-title">Screen Rotation Controls</div>
-                <div class="card-sub">Switch between Portrait and Landscape views or step rotate by 90 degrees</div>
+          <!-- Rotation & Stream Toolbar -->
+          <div class="mirror-toolbar">
+            <div class="btn-row">
+              <button id="rotLeftBtn" type="button">↺ -90°</button>
+              <button class="rot-angle-btn active-pill" data-angle="0" type="button">0° Portrait</button>
+              <button class="rot-angle-btn" data-angle="90" type="button">90° Full Landscape</button>
+              <button class="rot-angle-btn" data-angle="180" type="button">180° Flip</button>
+              <button class="rot-angle-btn" data-angle="270" type="button">270° Full Landscape</button>
+              <button id="rotRightBtn" type="button">↻ +90°</button>
+            </div>
+            <div class="btn-row">
+              <button id="mirrorStartBtn" type="button">Reconnect</button>
+              <button id="mirrorStopBtn" type="button">Pause</button>
+              <button id="mirrorSnapshotBtn" type="button">Snapshot</button>
+            </div>
+          </div>
+
+          <!-- Cinema Full-Width Stage (Expands full screen when rotated or in Fullscreen) -->
+          <div class="mirror-cinema-stage" id="mirrorStageWrap">
+            <canvas id="mirrorCanvas" width="720" height="1280"></canvas>
+
+            <!-- YouTube-style auto-hiding floating HUD -->
+            <div class="mirror-hud" id="mirrorHud">
+              <div class="mirror-hud-status">
+                <span class="status-dot" id="hudLiveDot"></span>
+                <span id="mirrorStreamStatus">Waiting for phone screen mirror...</span>
               </div>
               <div class="btn-row">
-                <button id="rotLeftBtn" type="button">Rotate Left (-90°)</button>
-                <button id="rotRightBtn" type="button">Rotate Right (+90°)</button>
-                <button id="rotResetBtn" type="button">Reset 0°</button>
+                <button id="hudRotLeft" type="button">↺ -90°</button>
+                <button id="hudRot90" type="button">90°</button>
+                <button id="hudRot0" type="button">0°</button>
+                <button id="hudRotRight" type="button">↻ +90°</button>
+                <button id="hudScaleBtn" type="button">Fit / Fill</button>
+                <button id="hudAudioBtn" type="button">Sound</button>
+                <button class="sys-key-btn" data-key="back" type="button">Back</button>
+                <button class="sys-key-btn" data-key="home" type="button">Home</button>
+                <button id="hudFsBtn" type="button">Fullscreen</button>
               </div>
-            </div>
-            <div class="grid-4">
-              <button class="rot-angle-btn active-btn" data-angle="0" type="button">0° Portrait</button>
-              <button class="rot-angle-btn" data-angle="90" type="button">90° Landscape</button>
-              <button class="rot-angle-btn" data-angle="180" type="button">180° Upside Down</button>
-              <button class="rot-angle-btn" data-angle="270" type="button">270° Landscape</button>
-            </div>
-            <div class="btn-row">
-              <button id="mirrorStartBtn" type="button">Reconnect Live Stream</button>
-              <button id="mirrorStopBtn" type="button">Pause Stream</button>
-              <button id="mirrorSnapshotBtn" type="button">Save Frame Snapshot</button>
             </div>
           </div>
 
-          <!-- Live Rotatable Canvas Mirror Stage -->
-          <div class="mirror-stage-wrap" id="mirrorStageWrap">
-            <canvas id="mirrorCanvas" width="360" height="640"></canvas>
-            <div class="mirror-meta">
-              <span id="mirrorStreamStatus">Waiting for phone screen mirror...</span>
-              <span id="mirrorCoordHint">Click = Tap · Hold = Long Press · Drag = Swipe</span>
-            </div>
-          </div>
-
-          <!-- Android Hardware & System Keys -->
-          <div class="card">
-            <div class="card-header">
-              <div>
-                <div class="card-title">Phone Navigation &amp; System Keys</div>
-                <div class="card-sub">Requires DeckLink Accessibility enabled on phone</div>
+          <!-- Remote Keys & Keyboard Input -->
+          <div class="grid-2">
+            <div class="card">
+              <div class="card-header">
+                <div>
+                  <div class="card-title">Android System Keys</div>
+                  <div class="card-sub">Click or drag directly on the screen above to tap &amp; swipe</div>
+                </div>
+              </div>
+              <div class="btn-row">
+                <button class="sys-key-btn" data-key="back" type="button">Back</button>
+                <button class="sys-key-btn" data-key="home" type="button">Home</button>
+                <button class="sys-key-btn" data-key="recents" type="button">Recents</button>
+                <button class="sys-key-btn" data-key="notifications" type="button">Shade</button>
+                <button class="sys-key-btn" data-key="quick_settings" type="button">Quick Settings</button>
+                <button class="sys-key-btn" data-key="screenshot" type="button">Screenshot</button>
+                <button class="sys-key-btn" data-key="power_dialog" type="button">Power</button>
+                <button class="sys-key-btn" data-key="lock_screen" type="button">Lock</button>
               </div>
             </div>
-            <div class="btn-row">
-              <button class="sys-key-btn" data-key="back" type="button">Back</button>
-              <button class="sys-key-btn" data-key="home" type="button">Home</button>
-              <button class="sys-key-btn" data-key="recents" type="button">Recents</button>
-              <button class="sys-key-btn" data-key="notifications" type="button">Notification Shade</button>
-              <button class="sys-key-btn" data-key="quick_settings" type="button">Quick Settings</button>
-              <button class="sys-key-btn" data-key="screenshot" type="button">Screenshot</button>
-              <button class="sys-key-btn" data-key="power_dialog" type="button">Power Menu</button>
-              <button class="sys-key-btn" data-key="lock_screen" type="button">Lock Screen</button>
-            </div>
-          </div>
 
-          <!-- Remote Keyboard Input -->
-          <div class="card">
-            <div class="card-header">
-              <div>
-                <div class="card-title">Remote Keyboard Typing</div>
-                <div class="card-sub">Type from your laptop keyboard straight into the focused field on your phone</div>
+            <div class="card">
+              <div class="card-header">
+                <div>
+                  <div class="card-title">Remote Keyboard</div>
+                  <div class="card-sub">Type from your laptop directly into the focused input on your phone</div>
+                </div>
               </div>
-            </div>
-            <div class="input-row">
-              <input id="remoteTypeInput" type="text" placeholder="Type text to send to phone..." />
-              <button id="remoteTypeSendBtn" type="button">Send Text</button>
-              <button id="remoteTypeReplaceBtn" type="button">Replace Field</button>
-              <button id="remoteTypeClearBtn" type="button">Clear Field</button>
+              <div class="input-row">
+                <input id="remoteTypeInput" type="text" placeholder="Type text to send to phone..." />
+                <button id="remoteTypeSendBtn" class="btn-primary" type="button">Send</button>
+                <button id="remoteTypeReplaceBtn" type="button">Replace</button>
+                <button id="remoteTypeClearBtn" type="button">Clear</button>
+              </div>
             </div>
           </div>
         </section>
 
-        <!-- SECTION 03: LIVE PHONE SOUND (DEDICATED WHOLE SECTION) -->
+        <!-- ================= 03. SECURE HIGH-SPEED UNLIMITED FILE BROWSER ================= -->
+        <section id="sec-files" class="section-page">
+          <div class="section-header">
+            <div>
+              <h1 class="section-title">Secure File Browser</h1>
+              <p class="section-desc">Unlimited file size · 128 KB direct streaming engine · Browse folders, preview media, upload &amp; download at full LAN/USB speed.</p>
+            </div>
+            <div class="btn-row">
+              <span class="pill" id="filesFreeSpacePill">Free Space: --</span>
+              <button id="newFolderBtn" class="btn-soft" type="button">+ New Folder</button>
+              <button id="reloadFilesBtn" type="button">Refresh</button>
+            </div>
+          </div>
+
+          <!-- Drag & Drop Multi-File Unlimited Upload Zone -->
+          <div class="card">
+            <div id="fileDropzone" class="dropzone" tabindex="0">
+              <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="1.8">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
+              <div style="font-size:15px;font-weight:700;">Drop any files here to upload to your phone</div>
+              <div class="card-sub">Unlimited file size (GB+ movies, ZIPs, photos, docs) · Multi-file queue with live MB/s speed</div>
+              <div class="btn-row" style="margin-top:4px;">
+                <button id="pickUploadFilesBtn" class="btn-primary" type="button">Choose Files to Upload</button>
+              </div>
+              <input id="fileUploadInput" type="file" multiple class="hidden" />
+            </div>
+
+            <!-- Live Upload Transfer Queue -->
+            <div id="uploadQueueContainer" class="upload-queue hidden"></div>
+          </div>
+
+          <!-- Folder Navigation + File Listing -->
+          <div class="card">
+            <div class="card-header">
+              <div class="breadcrumb-bar" id="fileBreadcrumbs" style="flex:1;"></div>
+              <div class="input-row" style="min-width:240px;">
+                <input id="fileFilterInput" type="text" placeholder="Filter in this folder..." />
+                <span class="pill" id="filesCountPill">0 items</span>
+              </div>
+            </div>
+
+            <!-- Inline New Folder Row -->
+            <div id="newFolderRow" class="input-row hidden" style="padding:12px;background:var(--bg-subtle);border-radius:12px;">
+              <input id="newFolderNameInput" type="text" placeholder="Enter new folder name..." />
+              <button id="createFolderConfirmBtn" class="btn-primary" type="button">Create Folder</button>
+              <button id="createFolderCancelBtn" type="button">Cancel</button>
+            </div>
+
+            <div id="filesList" style="display:flex;flex-direction:column;gap:8px;"></div>
+          </div>
+        </section>
+
+        <!-- ================= 04. LIVE PHONE SOUND ================= -->
         <section id="sec-audio" class="section-page">
           <div class="section-header">
             <div>
-              <div class="section-kicker">Section 03 — Live Phone-to-Laptop Audio Bridge</div>
-              <h1 class="section-title">Live Phone Sound &amp; Audio Control</h1>
-              <p class="section-desc">Hear music, videos, and game sound from your phone directly through your laptop speakers in real time.</p>
+              <h1 class="section-title">Live Phone Sound &amp; Audio</h1>
+              <p class="section-desc">Stream music, YouTube, and game audio from your phone directly to your laptop speakers.</p>
             </div>
             <span class="pill" id="audioStatePill">Stream: Stopped</span>
           </div>
 
-          <!-- Phone-to-Laptop Audio Receiver Card -->
           <div class="card">
             <div class="card-header">
               <div>
-                <div class="card-title">Phone Sound on Laptop Speakers</div>
-                <div class="card-sub" id="audioTechSpec">Format: 24,000 Hz · 16-bit PCM · Mono</div>
+                <div class="card-title">Phone-to-Laptop Audio Receiver</div>
+                <div class="card-sub" id="audioTechSpec">24,000 Hz · 16-bit PCM · Low-latency stream</div>
               </div>
               <div class="btn-row">
-                <button id="startPhoneAudioBtn" type="button">Start Phone Sound on Laptop</button>
-                <button id="stopPhoneAudioBtn" type="button" disabled>Stop Sound</button>
-                <button id="muteLaptopAudioBtn" type="button">Mute Laptop</button>
+                <button id="startPhoneAudioBtn" class="btn-primary" type="button">Start Phone Sound on Laptop</button>
+                <button id="stopPhoneAudioBtn" class="btn-danger" type="button" disabled>Stop Sound</button>
+                <button id="muteLaptopAudioBtn" type="button">Mute</button>
               </div>
             </div>
 
-            <div id="audioNoticeBox" class="error-box hidden"></div>
+            <div id="audioNoticeBox" class="alert-box info hidden"></div>
 
-            <canvas id="audioWaveCanvas" width="840" height="120"></canvas>
+            <canvas id="audioWaveCanvas" width="960" height="140"></canvas>
 
             <div class="grid-3">
-              <div class="stat-box">
-                <div class="stat-label">Phone Capture Status</div>
-                <div class="stat-value" style="font-size:16px;" id="audioPhoneCaptureStat">Checking...</div>
+              <div class="stat-card">
+                <span class="stat-label">Phone Capture</span>
+                <span class="stat-val" style="font-size:16px;" id="audioPhoneCaptureStat">Checking...</span>
               </div>
-              <div class="stat-box">
-                <div class="stat-label">Laptop Playback</div>
-                <div class="stat-value" style="font-size:16px;" id="audioLaptopPlayStat">Idle</div>
+              <div class="stat-card">
+                <span class="stat-label">Laptop Output</span>
+                <span class="stat-val" style="font-size:16px;" id="audioLaptopPlayStat">Idle</span>
               </div>
-              <div class="stat-box">
-                <div class="stat-label">Buffer Latency</div>
-                <div class="stat-value mono" style="font-size:16px;" id="audioLatencyStat">-- ms</div>
+              <div class="stat-card">
+                <span class="stat-label">Buffer Latency</span>
+                <span class="stat-val mono" style="font-size:16px;" id="audioLatencyStat">-- ms</span>
               </div>
             </div>
 
-            <div class="slider-block">
-              <div class="slider-top">
-                <span>Laptop Speaker Volume</span>
+            <div class="slider-card">
+              <div class="slider-head">
+                <span>Laptop Speaker Gain</span>
                 <span class="mono" id="laptopGainLabel">100%</span>
               </div>
               <input id="laptopGainSlider" type="range" min="0" max="150" value="100" />
             </div>
           </div>
 
-          <!-- Phone Hardware Volume Sliders -->
           <div class="card">
             <div class="card-header">
               <div>
-                <div class="card-title">Phone Volume Channels</div>
-                <div class="card-sub">Adjust hardware volume levels directly on your phone</div>
+                <div class="card-title">Phone Volume &amp; Ringer</div>
+                <div class="card-sub">Adjust hardware audio channels on your Android phone</div>
               </div>
               <div class="btn-row">
-                <button class="ringer-btn" data-mode="normal" type="button">Ringer: Normal</button>
-                <button class="ringer-btn" data-mode="vibrate" type="button">Ringer: Vibrate</button>
-                <button class="ringer-btn" data-mode="silent" type="button">Ringer: Silent</button>
+                <button class="ringer-btn" data-mode="normal" type="button">Normal</button>
+                <button class="ringer-btn" data-mode="vibrate" type="button">Vibrate</button>
+                <button class="ringer-btn" data-mode="silent" type="button">Silent</button>
               </div>
             </div>
             <div class="grid-2">
-              <div class="slider-block">
-                <div class="slider-top"><span>Media Volume</span><span class="mono" id="volMediaVal">0 / 0</span></div>
+              <div class="slider-card">
+                <div class="slider-head"><span>Media Volume</span><span class="mono" id="volMediaVal">0 / 0</span></div>
                 <input id="volMediaSlider" type="range" min="0" max="15" value="0" />
               </div>
-              <div class="slider-block">
-                <div class="slider-top"><span>Ring Volume</span><span class="mono" id="volRingVal">0 / 0</span></div>
+              <div class="slider-card">
+                <div class="slider-head"><span>Ring Volume</span><span class="mono" id="volRingVal">0 / 0</span></div>
                 <input id="volRingSlider" type="range" min="0" max="15" value="0" />
               </div>
-              <div class="slider-block">
-                <div class="slider-top"><span>Notification Volume</span><span class="mono" id="volNotifVal">0 / 0</span></div>
+              <div class="slider-card">
+                <div class="slider-head"><span>Notification Volume</span><span class="mono" id="volNotifVal">0 / 0</span></div>
                 <input id="volNotifSlider" type="range" min="0" max="15" value="0" />
               </div>
-              <div class="slider-block">
-                <div class="slider-top"><span>Alarm Volume</span><span class="mono" id="volAlarmVal">0 / 0</span></div>
+              <div class="slider-card">
+                <div class="slider-head"><span>Alarm Volume</span><span class="mono" id="volAlarmVal">0 / 0</span></div>
                 <input id="volAlarmSlider" type="range" min="0" max="15" value="0" />
               </div>
             </div>
-          </div>
-
-          <!-- Media Transport Controls -->
-          <div class="card">
-            <div class="card-header">
-              <div>
-                <div class="card-title">Phone Media Playback Transport</div>
-                <div class="card-sub">Control active music or video players on your phone</div>
-              </div>
-            </div>
             <div class="btn-row">
-              <button class="media-btn" data-cmd="previous" type="button">Previous Track</button>
-              <button class="media-btn" data-cmd="play_pause" type="button">Play / Pause</button>
-              <button class="media-btn" data-cmd="next" type="button">Next Track</button>
-              <button class="media-btn" data-cmd="stop" type="button">Stop</button>
+              <button class="media-btn" data-cmd="previous" type="button">⏮ Previous</button>
+              <button class="media-btn btn-soft" data-cmd="play_pause" type="button">⏯ Play / Pause</button>
+              <button class="media-btn" data-cmd="next" type="button">⏭ Next</button>
+              <button class="media-btn" data-cmd="stop" type="button">⏹ Stop</button>
             </div>
           </div>
         </section>
 
-        <!-- SECTION 04: APPS LAUNCHER -->
+        <!-- ================= 05. APP STREAMING LAUNCHER ================= -->
         <section id="sec-apps" class="section-page">
           <div class="section-header">
             <div>
-              <div class="section-kicker">Section 04</div>
-              <h1 class="section-title">Phone Apps Launcher</h1>
-              <p class="section-desc">Search and launch any installed application on your phone directly from your laptop.</p>
+              <h1 class="section-title">App Streaming Launcher</h1>
+              <p class="section-desc">Launch any app installed on your phone with one click.</p>
             </div>
             <button id="reloadAppsBtn" type="button">Refresh Apps</button>
           </div>
           <div class="card">
             <div class="input-row">
-              <input id="appFilterInput" type="text" placeholder="Filter apps by name or package..." />
+              <input id="appFilterInput" type="text" placeholder="Search apps by name or package..." />
               <span class="pill" id="appsCountPill">0 apps</span>
             </div>
             <div id="appsGrid" class="apps-grid"></div>
           </div>
         </section>
 
-        <!-- SECTION 05: FILE TRANSFER VAULT -->
-        <section id="sec-files" class="section-page">
-          <div class="section-header">
-            <div>
-              <div class="section-kicker">Section 05</div>
-              <h1 class="section-title">File Transfer Vault</h1>
-              <p class="section-desc">Send files from laptop to phone or download shared files from phone to laptop (up to 25 MB per file).</p>
-            </div>
-            <button id="reloadFilesBtn" type="button">Refresh Files</button>
-          </div>
-
-          <div class="card">
-            <div class="card-header">
-              <div>
-                <div class="card-title">Upload File to Phone</div>
-                <div class="card-sub">Choose a file from your laptop to store inside the phone Vault</div>
-              </div>
-            </div>
-            <div class="input-row">
-              <input id="fileUploadInput" type="file" />
-              <button id="fileUploadBtn" type="button">Upload to Phone</button>
-            </div>
-          </div>
-
-          <div class="card">
-            <div class="card-header">
-              <div>
-                <div class="card-title">Phone Vault Files</div>
-                <div class="card-sub">Download to your laptop or delete from phone</div>
-              </div>
-              <span class="pill" id="filesCountPill">0 files</span>
-            </div>
-            <div id="filesList" class="item-list"></div>
-          </div>
-        </section>
-
-        <!-- SECTION 06: CLIPBOARD SYNC -->
+        <!-- ================= 06. CLIPBOARD SYNC ================= -->
         <section id="sec-clipboard" class="section-page">
           <div class="section-header">
             <div>
-              <div class="section-kicker">Section 06</div>
-              <h1 class="section-title">Bidirectional Clipboard Sync</h1>
-              <p class="section-desc">Read your phone's clipboard text or send text from your laptop to your phone clipboard.</p>
+              <h1 class="section-title">Clipboard Sync</h1>
+              <p class="section-desc">Move text, links, and codes seamlessly between your phone and laptop.</p>
             </div>
           </div>
           <div class="card">
             <div class="btn-row">
-              <button id="clipPullBtn" type="button">Pull From Phone</button>
-              <button id="clipPushBtn" type="button">Push to Phone</button>
+              <button id="clipPullBtn" class="btn-soft" type="button">Pull from Phone</button>
+              <button id="clipPushBtn" class="btn-primary" type="button">Push to Phone</button>
               <button id="clipCopyLocalBtn" type="button">Copy to Laptop</button>
-              <button id="clipClearBtn" type="button">Clear Box</button>
+              <button id="clipClearBtn" type="button">Clear</button>
             </div>
-            <textarea id="clipTextarea" rows="8" placeholder="Synced clipboard content appears here..."></textarea>
+            <textarea id="clipTextarea" rows="8" placeholder="Clipboard text appears here..."></textarea>
           </div>
         </section>
 
-        <!-- SECTION 07: NOTIFICATIONS BRIDGE -->
+        <!-- ================= 07. NOTIFICATIONS ================= -->
         <section id="sec-notifications" class="section-page">
           <div class="section-header">
             <div>
-              <div class="section-kicker">Section 07</div>
-              <h1 class="section-title">Phone Notifications Bridge</h1>
-              <p class="section-desc">View live phone notifications on your laptop and dismiss them remotely.</p>
+              <h1 class="section-title">Phone Notifications</h1>
+              <p class="section-desc">Read live Android notifications and dismiss them from your laptop.</p>
             </div>
             <div class="btn-row">
-              <span class="pill" id="notifBridgePill">Status: Checking</span>
-              <button id="reloadNotifsBtn" type="button">Refresh Notifications</button>
+              <span class="pill" id="notifBridgePill">Bridge: Checking</span>
+              <button id="reloadNotifsBtn" type="button">Refresh</button>
             </div>
           </div>
           <div class="card">
-            <div id="notifsList" class="item-list"></div>
+            <div id="notifsList" style="display:flex;flex-direction:column;gap:8px;"></div>
           </div>
         </section>
 
-        <!-- SECTION 08: HARDWARE & MACROS -->
+        <!-- ================= 08. HARDWARE & MACROS ================= -->
         <section id="sec-hardware" class="section-page">
           <div class="section-header">
             <div>
-              <div class="section-kicker">Section 08</div>
-              <h1 class="section-title">Hardware Controls &amp; Macros</h1>
-              <p class="section-desc">Toggle phone flashlight, ring to locate phone, send haptic pings, open web links, and run automation macros.</p>
+              <h1 class="section-title">Hardware &amp; Automation Macros</h1>
+              <p class="section-desc">Control flashlight, locate phone chime, haptic ping, open URLs, and trigger one-tap routines.</p>
             </div>
           </div>
-
-          <div class="card">
-            <div class="card-header">
-              <div>
-                <div class="card-title">Hardware Actions</div>
-                <div class="card-sub">Direct hardware toggles on your phone</div>
+          <div class="grid-2">
+            <div class="card">
+              <div class="card-title">Hardware Actions</div>
+              <div class="btn-row">
+                <button id="torchToggleBtn" type="button">Flashlight: OFF</button>
+                <button id="ringToggleBtn" type="button">Find Phone Ring: OFF</button>
+                <button id="vibratePingBtn" type="button">Vibrate Ping</button>
               </div>
             </div>
-            <div class="btn-row">
-              <button id="torchToggleBtn" type="button">Flashlight: OFF</button>
-              <button id="ringToggleBtn" type="button">Find Phone Ring: OFF</button>
-              <button id="vibratePingBtn" type="button">Vibrate Ping</button>
+            <div class="card">
+              <div class="card-title">Open Link on Phone</div>
+              <div class="input-row">
+                <input id="openUrlInput" type="url" placeholder="https://youtube.com" />
+                <button id="openUrlBtn" class="btn-primary" type="button">Open</button>
+              </div>
             </div>
           </div>
-
           <div class="card">
             <div class="card-header">
-              <div>
-                <div class="card-title">Open Web Link on Phone</div>
-                <div class="card-sub">Launch any http:// or https:// URL in your phone's browser</div>
-              </div>
+              <div class="card-title">Automation Macros</div>
+              <button id="reloadMacrosBtn" type="button">Refresh</button>
             </div>
-            <div class="input-row">
-              <input id="openUrlInput" type="url" placeholder="https://example.com" />
-              <button id="openUrlBtn" type="button">Open on Phone</button>
-            </div>
-          </div>
-
-          <div class="card">
-            <div class="card-header">
-              <div>
-                <div class="card-title">One-Tap Automation Macros</div>
-                <div class="card-sub">Execute multi-step device routines remotely</div>
-              </div>
-              <button id="reloadMacrosBtn" type="button">Refresh Macros</button>
-            </div>
-            <div id="macrosList" class="item-list"></div>
+            <div id="macrosList" style="display:flex;flex-direction:column;gap:8px;"></div>
           </div>
         </section>
 
-        <!-- SECTION 09: UI INSPECTOR -->
+        <!-- ================= 09. UI INSPECTOR ================= -->
         <section id="sec-inspector" class="section-page">
           <div class="section-header">
             <div>
-              <div class="section-kicker">Section 09</div>
               <h1 class="section-title">Accessibility UI Inspector</h1>
-              <p class="section-desc">Inspect interactive buttons and text fields currently visible on your phone screen and trigger them precisely.</p>
+              <p class="section-desc">Scan interactive elements currently visible on your phone and click them accurately.</p>
             </div>
-            <button id="scanUiTreeBtn" type="button">Scan Current Phone Screen</button>
+            <button id="scanUiTreeBtn" class="btn-primary" type="button">Scan Phone Screen</button>
           </div>
           <div class="card">
-            <div id="uiNodesList" class="item-list"></div>
+            <div id="uiNodesList" style="display:flex;flex-direction:column;gap:8px;"></div>
           </div>
         </section>
 
       </main>
+    </div>
+  </div>
+
+  <!-- Media Preview Lightbox -->
+  <div id="previewModal" class="hidden">
+    <div class="preview-dialog">
+      <div class="preview-head">
+        <div style="font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" id="previewTitle">Preview</div>
+        <div class="btn-row">
+          <button id="previewDownloadBtn" class="btn-primary" type="button">Download</button>
+          <button id="previewCloseBtn" type="button">Close</button>
+        </div>
+      </div>
+      <div class="preview-body" id="previewBody"></div>
     </div>
   </div>
 
@@ -1113,21 +1616,24 @@
     (function () {
       "use strict";
 
-      // In-memory credentials only (never written to localStorage/sessionStorage)
+      // Credentials kept strictly in memory (never localStorage/sessionStorage)
       let authToken = null;
       let streamTicket = null;
       let pollTimer = null;
       let currentStatus = null;
       let cachedApps = [];
-      let cachedFiles = [];
+      let currentFileDir = "";
+      let currentFileEntries = [];
 
-      // Mirror & Rotation state
+      // Mirror, Rotation & YouTube-Style Fullscreen State
       let mirrorRotation = 0; // 0 | 90 | 180 | 270
+      let mirrorScaleMode = "fit"; // "fit" | "fill"
       let mirrorRunning = false;
       let mirrorRafId = null;
       let pointerDownInfo = null;
+      let hudHideTimer = null;
 
-      // Live Phone Audio WebAudio streaming state
+      // Live Audio Receiver State
       let audioActive = false;
       let audioMuted = false;
       let audioGainPercent = 100;
@@ -1138,21 +1644,18 @@
       let audioNextPlayTime = 0;
       let audioSampleRate = 24000;
       let audioWaveRafId = null;
-      let lastAudioLatencyMs = 0;
 
-      // Element refs
       const $ = (id) => document.getElementById(id);
       const pairView = $("pairView");
       const consoleView = $("consoleView");
-      const pairDeviceInfo = $("pairDeviceInfo");
-      const pinInput = $("pinInput");
-      const pairBtn = $("pairBtn");
-      const pairError = $("pairError");
       const mjpegSource = $("mjpegSource");
+      const mirrorStageWrap = $("mirrorStageWrap");
       const mirrorCanvas = $("mirrorCanvas");
       const mirrorCtx = mirrorCanvas.getContext("2d");
       const audioWaveCanvas = $("audioWaveCanvas");
       const audioWaveCtx = audioWaveCanvas.getContext("2d");
+
+      const MONOGRAM_COLORS = ["#2563EB", "#0891B2", "#059669", "#7C3AED", "#D97706", "#DB2777", "#4F46E5", "#0F766E"];
 
       let toastTimer = null;
       function showToast(msg) {
@@ -1163,11 +1666,25 @@
         toastTimer = setTimeout(() => el.classList.remove("show"), 3200);
       }
 
+      function formatBytes(b) {
+        const n = Number(b || 0);
+        if (n < 1024) return n + " B";
+        if (n < 1024 * 1024) return (n / 1024).toFixed(1) + " KB";
+        if (n < 1024 * 1024 * 1024) return (n / (1024 * 1024)).toFixed(2) + " MB";
+        return (n / (1024 * 1024 * 1024)).toFixed(2) + " GB";
+      }
+
+      // Theme toggle (Light / Dark)
+      $("themeToggleBtn").addEventListener("click", () => {
+        const html = document.documentElement;
+        const next = html.getAttribute("data-theme") === "dark" ? "light" : "dark";
+        html.setAttribute("data-theme", next);
+        $("themeToggleBtn").textContent = next === "dark" ? "Light Mode" : "Dark Mode";
+      });
+
       async function apiFetch(path, options = {}) {
         const headers = Object.assign({}, options.headers || {});
-        if (authToken) {
-          headers["Authorization"] = "Bearer " + authToken;
-        }
+        if (authToken) headers["Authorization"] = "Bearer " + authToken;
         const res = await fetch(path, Object.assign({}, options, { headers }));
         if (res.status === 401 && authToken) {
           disconnectLocal("Session expired or revoked on phone");
@@ -1176,13 +1693,12 @@
         const ct = res.headers.get("content-type") || "";
         const data = ct.includes("application/json") ? await res.json() : await res.text();
         if (!res.ok) {
-          const errMsg = (data && data.error) ? data.error : ("Request failed (" + res.status + ")");
-          throw new Error(errMsg);
+          throw new Error((data && data.error) ? data.error : ("Request failed (" + res.status + ")"));
         }
         return data;
       }
 
-      // Navigation between dedicated feature sections
+      // Section Navigation
       function switchSection(sectionId) {
         document.querySelectorAll(".nav-btn").forEach((btn) => {
           btn.classList.toggle("active", btn.dataset.section === sectionId);
@@ -1190,22 +1706,14 @@
         document.querySelectorAll(".section-page").forEach((sec) => {
           sec.classList.toggle("active", sec.id === "sec-" + sectionId);
         });
-
-        if (sectionId === "mirror" && authToken && !mirrorRunning) {
-          startMirrorStream();
+        if (sectionId === "mirror" && authToken) {
+          if (!mirrorRunning) startMirrorStream();
+          requestAnimationFrame(fitMirrorCanvasToStage);
         }
-        if (sectionId === "apps" && cachedApps.length === 0) {
-          loadApps();
-        }
-        if (sectionId === "files") {
-          loadFiles();
-        }
-        if (sectionId === "notifications") {
-          loadNotifications();
-        }
-        if (sectionId === "hardware") {
-          loadMacros();
-        }
+        if (sectionId === "files") loadFileDirectory(currentFileDir);
+        if (sectionId === "apps" && cachedApps.length === 0) loadApps();
+        if (sectionId === "notifications") loadNotifications();
+        if (sectionId === "hardware") loadMacros();
       }
 
       document.querySelectorAll(".nav-btn").forEach((btn) => {
@@ -1215,99 +1723,84 @@
         btn.addEventListener("click", () => switchSection(btn.dataset.jump));
       });
 
-      // Ping phone before pairing
+      // Ping & Pairing
       async function pingPhone() {
         try {
           const info = await fetch("/api/ping").then((r) => r.json());
-          pairDeviceInfo.textContent = "Phone detected: " + (info.deviceModel || "Android Device");
-        } catch (e) {
-          pairDeviceInfo.textContent = "Unable to reach phone server. Check Wi-Fi or USB bridge.";
+          $("pairDeviceInfo").textContent = "Phone ready: " + (info.deviceModel || "Android Device");
+          $("pairStatusDot").classList.remove("off");
+        } catch (_) {
+          $("pairDeviceInfo").textContent = "Cannot reach phone server. Check Wi-Fi or USB bridge.";
+          $("pairStatusDot").classList.add("off");
         }
       }
 
       async function performPair() {
-        pairError.classList.add("hidden");
-        const pin = pinInput.value.trim();
+        const errEl = $("pairError");
+        errEl.classList.add("hidden");
+        const pin = $("pinInput").value.trim();
         if (pin.length !== 6) {
-          pairError.textContent = "Please enter the exact 6-digit pairing PIN shown on your phone.";
-          pairError.classList.remove("hidden");
+          errEl.textContent = "Enter the 6-digit pairing PIN displayed on your phone.";
+          errEl.classList.remove("hidden");
           return;
         }
-        pairBtn.disabled = true;
+        $("pairBtn").disabled = true;
         try {
-          const data = await fetch("/api/auth/pair", {
+          const res = await fetch("/api/auth/pair", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ pin: pin, clientLabel: navigator.platform || "Laptop Browser" })
-          }).then(async (r) => {
-            const j = await r.json();
-            if (!r.ok) throw new Error(j.error || "Pairing failed");
-            return j;
           });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || "Invalid PIN");
           authToken = data.token;
           streamTicket = data.streamTicket;
-          pinInput.value = "";
+          $("pinInput").value = "";
           pairView.classList.add("hidden");
           consoleView.classList.remove("hidden");
           showToast("Connected to phone");
           await refreshStatus();
           loadApps();
-          loadFiles();
+          loadFileDirectory("");
           loadNotifications();
           loadMacros();
           startPolling();
           startMirrorLoop();
           drawIdleWave();
         } catch (e) {
-          pairError.textContent = e.message || "Invalid PIN";
-          pairError.classList.remove("hidden");
+          errEl.textContent = e.message || "Pairing failed";
+          errEl.classList.remove("hidden");
         } finally {
-          pairBtn.disabled = false;
+          $("pairBtn").disabled = false;
         }
       }
 
-      pairBtn.addEventListener("click", performPair);
-      pinInput.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") performPair();
-      });
+      $("pairBtn").addEventListener("click", performPair);
+      $("pinInput").addEventListener("keydown", (e) => { if (e.key === "Enter") performPair(); });
 
       async function disconnectLocal(reason) {
         stopPhoneAudioStream();
         stopMirrorStream();
-        if (pollTimer) {
-          clearInterval(pollTimer);
-          pollTimer = null;
-        }
+        if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
         if (authToken) {
           const tok = authToken;
           authToken = null;
           streamTicket = null;
-          try {
-            await fetch("/api/auth/logout", {
-              method: "POST",
-              headers: { "Authorization": "Bearer " + tok }
-            });
-          } catch (_) {}
+          try { await fetch("/api/auth/logout", { method: "POST", headers: { "Authorization": "Bearer " + tok } }); } catch (_) {}
         }
         consoleView.classList.add("hidden");
         pairView.classList.remove("hidden");
         if (reason) {
-          pairError.textContent = reason;
-          pairError.classList.remove("hidden");
+          $("pairError").textContent = reason;
+          $("pairError").classList.remove("hidden");
         }
       }
 
-      $("logoutBtn").addEventListener("click", () => disconnectLocal("Disconnected cleanly"));
-      $("topRefreshBtn").addEventListener("click", () => {
-        refreshStatus();
-        showToast("Status refreshed");
-      });
+      $("logoutBtn").addEventListener("click", () => disconnectLocal("Disconnected"));
 
       function startPolling() {
         if (pollTimer) clearInterval(pollTimer);
-        pollTimer = setInterval(() => {
-          if (authToken) refreshStatus();
-        }, 3500);
+        pollTimer = setInterval(() => { if (authToken) refreshStatus(); }, 3500);
       }
 
       async function refreshStatus() {
@@ -1316,66 +1809,80 @@
           currentStatus = st;
           if (st.audioSampleRate) audioSampleRate = st.audioSampleRate;
 
-          $("topDevicePill").textContent = (st.deviceModel || "Phone") + " · " + st.batteryPercent + "%";
-          $("overviewModelSub").textContent = (st.deviceModel || "Phone") + " · Android " + (st.androidVersion || "") + " · " + (st.ipAddress || "");
-          $("overviewNetworkPill").textContent = st.networkType || "LAN";
+          const topDev = $("topDevicePill");
+          topDev.textContent = "";
+          const dot = document.createElement("span");
+          dot.className = "status-dot";
+          const txt = document.createElement("span");
+          txt.textContent = (st.deviceModel || "Phone") + " · " + st.batteryPercent + "%";
+          topDev.appendChild(dot);
+          topDev.appendChild(txt);
 
-          $("statBattery").textContent = st.batteryPercent + "%" + (st.isCharging ? " (Chg)" : "");
-          $("statRam").textContent = st.ramUsedMb + " / " + st.ramTotalMb + " MB";
-          $("statStorage").textContent = Number(st.storageUsedGb || 0).toFixed(1) + " / " + Number(st.storageTotalGb || 0).toFixed(1) + " GB";
+          $("overviewModelSub").textContent = (st.deviceModel || "Android") + " · Android " + (st.androidVersion || "") + " · " + (st.ipAddress || "");
+          $("overviewNetworkSub").textContent = (st.networkType || "LAN") + " · " + (st.ipAddress || "");
+
+          $("statBattery").textContent = st.batteryPercent + "%" + (st.isCharging ? " ⚡" : "");
+          $("barBattery").style.width = Math.max(0, Math.min(100, st.batteryPercent || 0)) + "%";
+
+          const ramPct = st.ramTotalMb ? Math.round((st.ramUsedMb / st.ramTotalMb) * 100) : 0;
+          $("statRam").textContent = (st.ramUsedMb / 1024).toFixed(1) + " / " + (st.ramTotalMb / 1024).toFixed(1) + " GB";
+          $("barRam").style.width = Math.max(0, Math.min(100, ramPct)) + "%";
+
+          const storPct = st.storageTotalGb ? Math.round((st.storageUsedGb / st.storageTotalGb) * 100) : 0;
+          $("statStorage").textContent = Number(st.storageUsedGb || 0).toFixed(1) + " / " + Number(st.storageTotalGb || 0).toFixed(0) + " GB";
+          $("barStorage").style.width = Math.max(0, Math.min(100, storPct)) + "%";
+
           $("statTemp").textContent = Number(st.batteryTempC || 0).toFixed(1) + " °C";
+
+          if (typeof st.vaultFreeSpaceBytes === "number") {
+            const freeLabel = formatBytes(st.vaultFreeSpaceBytes);
+            $("statVaultFree").textContent = freeLabel;
+            $("filesFreeSpacePill").textContent = "Free Storage: " + freeLabel;
+          }
 
           const r = st.readiness || {};
           const mirrorActive = !!r.screenMirrorActive;
           const audioCapActive = !!r.audioForwardingActive;
-          const touchReady = !!r.accessibilityConnected;
 
-          $("topMirrorPill").textContent = mirrorActive ? "Mirror: Live" : "Mirror: Off on Phone";
-          $("statMirrorReady").textContent = mirrorActive ? "LIVE" : "OFF ON PHONE";
-          $("statAudioReady").textContent = audioCapActive ? "LIVE" : "STANDBY";
-          $("statTouchReady").textContent = touchReady ? "READY" : "OFF";
+          $("topMirrorPill").textContent = mirrorActive ? "Mirror: Live" : "Mirror: Standby";
+          $("topMirrorPill").classList.toggle("live", mirrorActive);
+          $("statMirrorReady").textContent = mirrorActive ? "Streaming Live" : "Off on Phone";
+          $("statAudioReady").textContent = audioCapActive ? "Streaming Live" : "Standby";
+          $("statTouchReady").textContent = r.accessibilityConnected ? "Active" : "Enable on Phone";
+          $("hudLiveDot").classList.toggle("off", !mirrorActive);
 
           if (typeof r.mirrorRotationDegrees === "number" && r.mirrorRotationDegrees !== mirrorRotation) {
             applyLocalRotationUI(r.mirrorRotationDegrees);
           }
 
-          // Audio section status
-          $("audioTechSpec").textContent = "Format: " + audioSampleRate + " Hz · 16-bit PCM · " + (st.audioChannels === 2 ? "Stereo" : "Mono");
           $("audioPhoneCaptureStat").textContent = audioCapActive
-            ? "Streaming from Phone"
-            : (r.audioForwardingSupported === false ? "Requires Android 10+" : "Start on Phone First");
+            ? "Active on Phone"
+            : (r.audioForwardingSupported === false ? "Requires Android 10+" : "Tap 'Phone audio' on Phone");
 
           const noticeBox = $("audioNoticeBox");
           if (r.audioForwardingError) {
-            noticeBox.textContent = "Phone Audio Notice: " + r.audioForwardingError;
+            noticeBox.textContent = r.audioForwardingError;
             noticeBox.classList.remove("hidden");
           } else if (!audioCapActive) {
-            noticeBox.textContent = "To hear phone sound on your laptop, open DeckLink on your phone and tap 'Start Phone Sound' (or Start Screen Mirror) in Section 4.";
+            noticeBox.textContent = "Tap 'Phone audio' on your phone dashboard first, then click 'Start Phone Sound on Laptop' above.";
             noticeBox.classList.remove("hidden");
           } else {
             noticeBox.classList.add("hidden");
           }
 
-          // Volumes
           const v = st.volumes || {};
           syncSlider("volMediaSlider", "volMediaVal", v.media, v.mediaMax);
           syncSlider("volRingSlider", "volRingVal", v.ring, v.ringMax);
           syncSlider("volNotifSlider", "volNotifVal", v.notification, v.notificationMax);
           syncSlider("volAlarmSlider", "volAlarmVal", v.alarm, v.alarmMax);
+          document.querySelectorAll(".ringer-btn").forEach((b) => b.classList.toggle("active-pill", b.dataset.mode === v.ringerMode));
 
-          document.querySelectorAll(".ringer-btn").forEach((b) => {
-            b.classList.toggle("active-btn", b.dataset.mode === v.ringerMode);
-          });
-
-          // Hardware buttons
           $("torchToggleBtn").textContent = r.torchEnabled ? "Flashlight: ON" : "Flashlight: OFF";
-          $("torchToggleBtn").classList.toggle("active-btn", !!r.torchEnabled);
+          $("torchToggleBtn").classList.toggle("active-pill", !!r.torchEnabled);
           $("ringToggleBtn").textContent = r.finderRingActive ? "Find Phone Ring: RINGING" : "Find Phone Ring: OFF";
-          $("ringToggleBtn").classList.toggle("active-btn", !!r.finderRingActive);
-
+          $("ringToggleBtn").classList.toggle("active-pill", !!r.finderRingActive);
           $("notifBridgePill").textContent = r.notificationBridgeConnected ? "Bridge: Active" : "Bridge: Off on Phone";
 
-          // Auto-start mirror if user is currently on Mirror section and stream became active
           if (mirrorActive && $("sec-mirror").classList.contains("active") && !mirrorRunning) {
             startMirrorStream();
           }
@@ -1383,20 +1890,17 @@
       }
 
       function syncSlider(sliderId, labelId, val, max) {
-        const s = $(sliderId);
-        const l = $(labelId);
+        const s = $(sliderId), l = $(labelId);
         if (!s || !l) return;
         const safeMax = Math.max(1, Number(max || 15));
         const safeVal = Math.max(0, Math.min(safeMax, Number(val || 0)));
         s.max = String(safeMax);
-        if (document.activeElement !== s) {
-          s.value = String(safeVal);
-        }
+        if (document.activeElement !== s) s.value = String(safeVal);
         l.textContent = safeVal + " / " + safeMax;
       }
 
       // ================================================================
-      // SECTION 01: SEARCH EVERYWHERE
+      // 01. SEARCH EVERYWHERE
       // ================================================================
       function renderGlobalSearch() {
         const q = $("globalSearchInput").value.trim().toLowerCase();
@@ -1404,103 +1908,107 @@
         container.textContent = "";
         if (!q) {
           const hint = document.createElement("div");
-          hint.className = "list-row";
-          hint.textContent = "Type any app name or file name to search across your phone immediately.";
+          hint.className = "card-sub";
+          hint.textContent = "Type any app name or file name to jump straight to it.";
           container.appendChild(hint);
           return;
         }
         const matchedApps = cachedApps.filter((a) =>
           (a.label || "").toLowerCase().includes(q) || (a.packageName || "").toLowerCase().includes(q)
         ).slice(0, 6);
-        const matchedFiles = cachedFiles.filter((f) =>
-          (f.name || "").toLowerCase().includes(q)
+        const matchedFiles = currentFileEntries.filter((f) =>
+          !f.isDirectory && (f.name || "").toLowerCase().includes(q)
         ).slice(0, 6);
 
         if (matchedApps.length === 0 && matchedFiles.length === 0) {
           const empty = document.createElement("div");
-          empty.className = "list-row";
-          empty.textContent = "No matching apps or files found for \"" + q + "\".";
+          empty.className = "card-sub";
+          empty.textContent = "No matching apps or files found.";
           container.appendChild(empty);
           return;
         }
 
         matchedApps.forEach((app) => {
           const row = document.createElement("div");
-          row.className = "list-row";
+          row.className = "file-row";
+          const left = document.createElement("div");
+          left.className = "file-row-left";
+          const badge = document.createElement("div");
+          badge.className = "file-badge";
+          badge.textContent = "APP";
           const info = document.createElement("div");
-          info.className = "list-row-info";
-          const title = document.createElement("div");
-          title.className = "list-row-title";
-          title.textContent = "[App] " + app.label;
-          const sub = document.createElement("div");
-          sub.className = "list-row-sub mono";
-          sub.textContent = app.packageName;
-          info.appendChild(title);
-          info.appendChild(sub);
+          const name = document.createElement("div");
+          name.className = "file-name";
+          name.textContent = app.label;
+          const meta = document.createElement("div");
+          meta.className = "file-meta mono";
+          meta.textContent = app.packageName;
+          info.appendChild(name);
+          info.appendChild(meta);
+          left.appendChild(badge);
+          left.appendChild(info);
 
           const btn = document.createElement("button");
+          btn.className = "btn-soft";
           btn.type = "button";
           btn.textContent = "Open App";
           btn.addEventListener("click", () => launchPhoneApp(app.packageName, app.label));
-
-          row.appendChild(info);
+          row.appendChild(left);
           row.appendChild(btn);
           container.appendChild(row);
         });
 
-        matchedFiles.forEach((file) => {
+        matchedFiles.forEach((f) => {
           const row = document.createElement("div");
-          row.className = "list-row";
+          row.className = "file-row";
+          const left = document.createElement("div");
+          left.className = "file-row-left";
+          const badge = document.createElement("div");
+          badge.className = "file-badge media";
+          badge.textContent = "FILE";
           const info = document.createElement("div");
-          info.className = "list-row-info";
-          const title = document.createElement("div");
-          title.className = "list-row-title";
-          title.textContent = "[File] " + file.name;
-          const sub = document.createElement("div");
-          sub.className = "list-row-sub";
-          sub.textContent = formatBytes(file.sizeBytes);
-          info.appendChild(title);
-          info.appendChild(sub);
+          const name = document.createElement("div");
+          name.className = "file-name";
+          name.textContent = f.name;
+          const meta = document.createElement("div");
+          meta.className = "file-meta";
+          meta.textContent = formatBytes(f.sizeBytes);
+          info.appendChild(name);
+          info.appendChild(meta);
+          left.appendChild(badge);
+          left.appendChild(info);
 
           const btn = document.createElement("button");
+          btn.className = "btn-soft";
           btn.type = "button";
           btn.textContent = "Download";
-          btn.addEventListener("click", () => downloadVaultFile(file.name));
-
-          row.appendChild(info);
+          btn.addEventListener("click", () => downloadVaultFile(f.relativePath, f.name));
+          row.appendChild(left);
           row.appendChild(btn);
           container.appendChild(row);
         });
       }
 
       $("globalSearchInput").addEventListener("input", renderGlobalSearch);
-      $("globalSearchClearBtn").addEventListener("click", () => {
-        $("globalSearchInput").value = "";
-        renderGlobalSearch();
-      });
+      $("globalSearchClearBtn").addEventListener("click", () => { $("globalSearchInput").value = ""; renderGlobalSearch(); });
       $("refreshSearchIndexBtn").addEventListener("click", async () => {
-        await Promise.all([loadApps(), loadFiles()]);
+        await Promise.all([loadApps(), loadFileDirectory(currentFileDir)]);
         renderGlobalSearch();
-        showToast("Search index synced");
+        showToast("Index refreshed");
       });
 
       // ================================================================
-      // SECTION 02: SCREEN MIRROR & ROTATION (CANVAS + ROTATED TOUCH)
+      // 02. YOUTUBE-STYLE FULL-SCREEN ROTATABLE SCREEN MIRROR
       // ================================================================
-      function angleLabel(deg) {
-        if (deg === 90) return "90° (Landscape Right)";
-        if (deg === 180) return "180° (Upside Down)";
-        if (deg === 270) return "270° (Landscape Left)";
-        return "0° (Portrait)";
-      }
-
       function applyLocalRotationUI(deg) {
         mirrorRotation = ((deg % 360) + 360) % 360;
-        $("mirrorAngleBadge").textContent = "Angle: " + angleLabel(mirrorRotation);
-        $("statRotationReady").textContent = mirrorRotation + "°";
+        $("navMirrorBadge").textContent = mirrorRotation + "°";
         document.querySelectorAll(".rot-angle-btn").forEach((btn) => {
-          btn.classList.toggle("active-btn", Number(btn.dataset.angle) === mirrorRotation);
+          btn.classList.toggle("active-pill", Number(btn.dataset.angle) === mirrorRotation);
         });
+        const isLandscape = (mirrorRotation === 90 || mirrorRotation === 270);
+        mirrorStageWrap.classList.toggle("landscape-stage", isLandscape);
+        requestAnimationFrame(fitMirrorCanvasToStage);
       }
 
       async function setRotationAngle(deg) {
@@ -1513,32 +2021,126 @@
             body: JSON.stringify({ degrees: normalized })
           });
           showToast("Screen rotated to " + normalized + "°");
-        } catch (e) {
-          showToast("Rotation synced locally (" + normalized + "°)");
+        } catch (_) {}
+      }
+
+      /**
+       * Computes exact CSS width & height so the rotated canvas ALWAYS expands
+       * to fill 100% of the stage (and 100vw x 100vh in YouTube Fullscreen),
+       * NEVER shrinking inside a small portrait box!
+       */
+      function fitMirrorCanvasToStage() {
+        const stageW = mirrorStageWrap.clientWidth;
+        const stageH = mirrorStageWrap.clientHeight;
+        if (stageW <= 0 || stageH <= 0) return;
+
+        const cw = Math.max(1, mirrorCanvas.width);
+        const ch = Math.max(1, mirrorCanvas.height);
+        const aspect = cw / ch;
+
+        const pad = document.fullscreenElement ? 0 : 12;
+        const availW = Math.max(100, stageW - pad * 2);
+        const availH = Math.max(100, stageH - pad * 2);
+
+        let dispW, dispH;
+        if (mirrorScaleMode === "fill") {
+          // Cover mode (like YouTube pinch-to-zoom fullscreen)
+          if (availW / availH > aspect) {
+            dispW = availW;
+            dispH = availW / aspect;
+          } else {
+            dispH = availH;
+            dispW = availH * aspect;
+          }
+        } else {
+          // Fit mode (maximum full-bleed aspect-preserving size!)
+          if (availW / availH > aspect) {
+            dispH = availH;
+            dispW = availH * aspect;
+          } else {
+            dispW = availW;
+            dispH = availW / aspect;
+          }
+        }
+
+        mirrorCanvas.style.width = Math.round(dispW) + "px";
+        mirrorCanvas.style.height = Math.round(dispH) + "px";
+      }
+
+      function toggleScaleMode() {
+        mirrorScaleMode = mirrorScaleMode === "fit" ? "fill" : "fit";
+        const label = mirrorScaleMode === "fill" ? "Scale: Fill (Zoom)" : "Scale: Fit";
+        $("mirrorScaleModeBtn").textContent = label;
+        $("hudScaleBtn").textContent = mirrorScaleMode === "fill" ? "Fill" : "Fit";
+        $("hudScaleBtn").classList.toggle("active-pill", mirrorScaleMode === "fill");
+        fitMirrorCanvasToStage();
+      }
+
+      function toggleMirrorFullscreen() {
+        if (!document.fullscreenElement) {
+          mirrorStageWrap.requestFullscreen().catch(() => {});
+        } else {
+          document.exitFullscreen().catch(() => {});
         }
       }
+
+      function bumpMirrorHud() {
+        mirrorStageWrap.classList.remove("hud-hidden");
+        if (hudHideTimer) clearTimeout(hudHideTimer);
+        if (document.fullscreenElement) {
+          hudHideTimer = setTimeout(() => {
+            mirrorStageWrap.classList.add("hud-hidden");
+          }, 2600);
+        }
+      }
+
+      mirrorStageWrap.addEventListener("mousemove", bumpMirrorHud);
+      mirrorStageWrap.addEventListener("pointerdown", bumpMirrorHud);
+      mirrorCanvas.addEventListener("dblclick", toggleMirrorFullscreen);
+
+      document.addEventListener("fullscreenchange", () => {
+        const isFs = !!document.fullscreenElement;
+        $("mirrorFullscreenBtn").textContent = isFs ? "Exit Fullscreen (Esc)" : "Fullscreen (F)";
+        $("hudFsBtn").textContent = isFs ? "Exit Fullscreen" : "Fullscreen";
+        bumpMirrorHud();
+        setTimeout(fitMirrorCanvasToStage, 40);
+        setTimeout(fitMirrorCanvasToStage, 200);
+      });
+
+      window.addEventListener("resize", () => {
+        if ($("sec-mirror").classList.contains("active")) {
+          fitMirrorCanvasToStage();
+        }
+      });
+
+      // Keyboard shortcut 'F' for YouTube-style Fullscreen when on Mirror tab
+      document.addEventListener("keydown", (e) => {
+        if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA")) return;
+        if ((e.key === "f" || e.key === "F") && $("sec-mirror").classList.contains("active")) {
+          e.preventDefault();
+          toggleMirrorFullscreen();
+        }
+      });
 
       document.querySelectorAll(".rot-angle-btn").forEach((btn) => {
         btn.addEventListener("click", () => setRotationAngle(Number(btn.dataset.angle)));
       });
       $("rotLeftBtn").addEventListener("click", () => setRotationAngle(mirrorRotation - 90));
       $("rotRightBtn").addEventListener("click", () => setRotationAngle(mirrorRotation + 90));
-      $("rotResetBtn").addEventListener("click", () => setRotationAngle(0));
-
-      $("mirrorFullscreenBtn").addEventListener("click", () => {
-        const wrap = $("mirrorStageWrap");
-        if (!document.fullscreenElement) {
-          wrap.requestFullscreen().catch(() => {});
-        } else {
-          document.exitFullscreen().catch(() => {});
-        }
-      });
+      $("hudRotLeft").addEventListener("click", () => setRotationAngle(mirrorRotation - 90));
+      $("hudRotRight").addEventListener("click", () => setRotationAngle(mirrorRotation + 90));
+      $("hudRot90").addEventListener("click", () => setRotationAngle(90));
+      $("hudRot0").addEventListener("click", () => setRotationAngle(0));
+      $("mirrorFullscreenBtn").addEventListener("click", toggleMirrorFullscreen);
+      $("hudFsBtn").addEventListener("click", toggleMirrorFullscreen);
+      $("mirrorScaleModeBtn").addEventListener("click", toggleScaleMode);
+      $("hudScaleBtn").addEventListener("click", toggleScaleMode);
 
       function startMirrorStream() {
         if (!streamTicket) return;
         mirrorRunning = true;
         mjpegSource.src = "/api/stream/mjpeg?ticket=" + encodeURIComponent(streamTicket) + "&t=" + Date.now();
-        $("mirrorStreamStatus").textContent = "Connecting to live phone screen...";
+        $("mirrorStreamStatus").textContent = "Connecting to phone display...";
       }
 
       function stopMirrorStream() {
@@ -1553,9 +2155,9 @@
         if (!streamTicket) return;
         const a = document.createElement("a");
         a.href = "/api/screen/frame?ticket=" + encodeURIComponent(streamTicket) + "&t=" + Date.now();
-        a.download = "decklink_phone_frame.jpg";
+        a.download = "decklink_snapshot.jpg";
         a.click();
-        showToast("Snapshot downloaded");
+        showToast("Snapshot saved");
       });
 
       function startMirrorLoop() {
@@ -1573,24 +2175,24 @@
 
         if (!hasFrame) {
           const isLandscape = (mirrorRotation === 90 || mirrorRotation === 270);
-          const targetW = isLandscape ? 640 : 340;
-          const targetH = isLandscape ? 360 : 580;
+          const targetW = isLandscape ? 1280 : 540;
+          const targetH = isLandscape ? 600 : 1080;
           if (mirrorCanvas.width !== targetW || mirrorCanvas.height !== targetH) {
             mirrorCanvas.width = targetW;
             mirrorCanvas.height = targetH;
+            fitMirrorCanvasToStage();
           }
-          mirrorCtx.fillStyle = "#FFFFFF";
-          mirrorCtx.fillRect(0, 0, mirrorCanvas.width, mirrorCanvas.height);
-          mirrorCtx.fillStyle = "#000000";
-          mirrorCtx.font = "bold 16px sans-serif";
+          mirrorCtx.fillStyle = "#0B0F17";
+          mirrorCtx.fillRect(0, 0, targetW, targetH);
+          mirrorCtx.fillStyle = "#E2E8F0";
+          mirrorCtx.font = "bold 22px sans-serif";
           mirrorCtx.textAlign = "center";
-          mirrorCtx.fillText("Phone Screen Mirror Standby", mirrorCanvas.width / 2, mirrorCanvas.height / 2 - 12);
-          mirrorCtx.font = "13px sans-serif";
-          mirrorCtx.fillText("Start Screen Mirror on your phone (Rotation: " + mirrorRotation + "°)", mirrorCanvas.width / 2, mirrorCanvas.height / 2 + 14);
+          mirrorCtx.fillText("Phone Screen Mirror Standby", targetW / 2, targetH / 2 - 14);
+          mirrorCtx.fillStyle = "#94A3B8";
+          mirrorCtx.font = "15px sans-serif";
+          mirrorCtx.fillText("Tap 'Screen share' on your phone (Current angle: " + mirrorRotation + "°)", targetW / 2, targetH / 2 + 18);
           return;
         }
-
-        $("mirrorStreamStatus").textContent = "Live (" + img.naturalWidth + "×" + img.naturalHeight + ") · Rotated " + mirrorRotation + "°";
 
         const nw = img.naturalWidth;
         const nh = img.naturalHeight;
@@ -1601,10 +2203,13 @@
         if (mirrorCanvas.width !== targetW || mirrorCanvas.height !== targetH) {
           mirrorCanvas.width = targetW;
           mirrorCanvas.height = targetH;
+          fitMirrorCanvasToStage();
         }
 
+        $("mirrorStreamStatus").textContent = "Live " + targetW + "×" + targetH + " · " + mirrorRotation + "° · Double-click for Fullscreen";
+
         mirrorCtx.save();
-        mirrorCtx.fillStyle = "#FFFFFF";
+        mirrorCtx.fillStyle = "#000000";
         mirrorCtx.fillRect(0, 0, targetW, targetH);
         mirrorCtx.translate(targetW / 2, targetH / 2);
         mirrorCtx.rotate((mirrorRotation * Math.PI) / 180);
@@ -1612,20 +2217,12 @@
         mirrorCtx.restore();
       }
 
-      // Inverse rotation mapping from viewer canvas coords (u, v) in [0..1] to phone native coords (px, py) in [0..1]
       function mapViewerToPhone(u, v) {
         const clamp = (n) => Math.max(0, Math.min(1, n));
-        const cu = clamp(u);
-        const cv = clamp(v);
-        if (mirrorRotation === 90) {
-          return { x: cv, y: 1 - cu };
-        }
-        if (mirrorRotation === 180) {
-          return { x: 1 - cu, y: 1 - cv };
-        }
-        if (mirrorRotation === 270) {
-          return { x: 1 - cv, y: cu };
-        }
+        const cu = clamp(u), cv = clamp(v);
+        if (mirrorRotation === 90) return { x: cv, y: 1 - cu };
+        if (mirrorRotation === 180) return { x: 1 - cu, y: 1 - cv };
+        if (mirrorRotation === 270) return { x: 1 - cv, y: cu };
         return { x: cu, y: cv };
       }
 
@@ -1650,38 +2247,25 @@
         const end = getCanvasNormalizedPoint(e);
         const elapsed = Math.max(40, Math.round(performance.now() - start.time));
         const dist = Math.hypot(end.x - start.x, end.y - start.y);
-
         try {
           if (dist < 0.03) {
-            const tapDuration = elapsed >= 450 ? Math.min(elapsed, 1200) : 70;
             await apiFetch("/api/input/tap", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ x: end.x, y: end.y, durationMs: tapDuration })
+              body: JSON.stringify({ x: end.x, y: end.y, durationMs: elapsed >= 450 ? Math.min(elapsed, 1200) : 70 })
             });
           } else {
             await apiFetch("/api/input/swipe", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                x1: start.x,
-                y1: start.y,
-                x2: end.x,
-                y2: end.y,
-                durationMs: Math.max(120, Math.min(900, elapsed))
-              })
+              body: JSON.stringify({ x1: start.x, y1: start.y, x2: end.x, y2: end.y, durationMs: Math.max(120, Math.min(900, elapsed)) })
             });
           }
-        } catch (err) {
-          showToast(err.message);
-        }
+        } catch (err) { showToast(err.message); }
       });
 
-      mirrorCanvas.addEventListener("pointercancel", () => {
-        pointerDownInfo = null;
-      });
+      mirrorCanvas.addEventListener("pointercancel", () => { pointerDownInfo = null; });
 
-      // Global Android System Keys
       document.querySelectorAll(".sys-key-btn").forEach((btn) => {
         btn.addEventListener("click", async () => {
           try {
@@ -1690,14 +2274,11 @@
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ action: btn.dataset.key })
             });
-            showToast("Sent key: " + btn.textContent);
-          } catch (e) {
-            showToast(e.message);
-          }
+            showToast("Key: " + btn.textContent);
+          } catch (e) { showToast(e.message); }
         });
       });
 
-      // Remote Keyboard Input
       async function sendRemoteText(append) {
         const text = $("remoteTypeInput").value;
         if (!text) return;
@@ -1709,11 +2290,8 @@
           });
           $("remoteTypeInput").value = "";
           showToast(append ? "Typed on phone" : "Replaced text on phone");
-        } catch (e) {
-          showToast(e.message);
-        }
+        } catch (e) { showToast(e.message); }
       }
-
       $("remoteTypeSendBtn").addEventListener("click", () => sendRemoteText(true));
       $("remoteTypeReplaceBtn").addEventListener("click", () => sendRemoteText(false));
       $("remoteTypeClearBtn").addEventListener("click", async () => {
@@ -1723,51 +2301,426 @@
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ clear: true })
           });
-          showToast("Cleared focused field");
+          showToast("Cleared input field");
+        } catch (e) { showToast(e.message); }
+      });
+      $("remoteTypeInput").addEventListener("keydown", (e) => { if (e.key === "Enter") sendRemoteText(true); });
+
+      // ================================================================
+      // 03. SECURE HIGH-SPEED UNLIMITED FILE BROWSER (STREAMING + PROGRESS)
+      // ================================================================
+      async function loadFileDirectory(dirPath) {
+        try {
+          const data = await apiFetch("/api/files?path=" + encodeURIComponent(dirPath || ""));
+          currentFileDir = data.currentPath || "";
+          currentFileEntries = data.entries || [];
+          if (typeof data.freeSpaceBytes === "number") {
+            $("filesFreeSpacePill").textContent = "Free Storage: " + formatBytes(data.freeSpaceBytes);
+            $("statVaultFree").textContent = formatBytes(data.freeSpaceBytes);
+          }
+          renderBreadcrumbs();
+          renderFileEntries();
+          renderGlobalSearch();
         } catch (e) {
           showToast(e.message);
         }
+      }
+
+      function renderBreadcrumbs() {
+        const bar = $("fileBreadcrumbs");
+        bar.textContent = "";
+
+        const rootBtn = document.createElement("button");
+        rootBtn.type = "button";
+        rootBtn.className = "crumb-btn";
+        rootBtn.textContent = "Phone Vault";
+        rootBtn.addEventListener("click", () => loadFileDirectory(""));
+        bar.appendChild(rootBtn);
+
+        if (!currentFileDir) return;
+        const parts = currentFileDir.split("/").filter(Boolean);
+        let acc = "";
+        parts.forEach((seg) => {
+          acc = acc ? (acc + "/" + seg) : seg;
+          const targetPath = acc;
+          const sep = document.createElement("span");
+          sep.className = "crumb-sep";
+          sep.textContent = "/";
+          bar.appendChild(sep);
+
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "crumb-btn";
+          btn.textContent = seg;
+          btn.addEventListener("click", () => loadFileDirectory(targetPath));
+          bar.appendChild(btn);
+        });
+      }
+
+      function badgeInfoForEntry(entry) {
+        if (entry.isDirectory) return { label: "DIR", cls: "folder" };
+        const mime = (entry.mimeType || "").toLowerCase();
+        if (mime.startsWith("image/")) return { label: "IMG", cls: "media" };
+        if (mime.startsWith("video/")) return { label: "VID", cls: "media" };
+        if (mime.startsWith("audio/")) return { label: "AUD", cls: "media" };
+        if (mime.includes("pdf")) return { label: "PDF", cls: "" };
+        if (mime.includes("zip") || mime.includes("rar") || mime.includes("7z")) return { label: "ZIP", cls: "" };
+        const ext = (entry.name || "").split(".").pop();
+        return { label: (ext && ext.length <= 4 ? ext.toUpperCase() : "FILE"), cls: "" };
+      }
+
+      function canPreviewEntry(entry) {
+        if (entry.isDirectory) return false;
+        const m = (entry.mimeType || "").toLowerCase();
+        return m.startsWith("image/") || m.startsWith("video/") || m.startsWith("audio/");
+      }
+
+      function renderFileEntries() {
+        const q = $("fileFilterInput").value.trim().toLowerCase();
+        const filtered = currentFileEntries.filter((e) => !q || (e.name || "").toLowerCase().includes(q));
+        $("filesCountPill").textContent = filtered.length + " items";
+        $("navFilesBadge").textContent = String(currentFileEntries.length);
+
+        const list = $("filesList");
+        list.textContent = "";
+
+        if (currentFileDir) {
+          const parentPath = currentFileDir.includes("/") ? currentFileDir.substring(0, currentFileDir.lastIndexOf("/")) : "";
+          const upRow = document.createElement("div");
+          upRow.className = "file-row";
+          const left = document.createElement("div");
+          left.className = "file-row-left";
+          const b = document.createElement("div");
+          b.className = "file-badge folder";
+          b.textContent = "↑";
+          const name = document.createElement("div");
+          name.className = "file-name";
+          name.textContent = ".. (Parent Folder)";
+          left.appendChild(b);
+          left.appendChild(name);
+          left.addEventListener("click", () => loadFileDirectory(parentPath));
+          upRow.appendChild(left);
+          list.appendChild(upRow);
+        }
+
+        if (filtered.length === 0) {
+          const empty = document.createElement("div");
+          empty.style.padding = "24px";
+          empty.style.textAlign = "center";
+          empty.className = "card-sub";
+          empty.textContent = q ? "No files match your filter." : "This folder is empty. Drop files above or add photos/docs from your phone.";
+          list.appendChild(empty);
+          return;
+        }
+
+        filtered.forEach((entry) => {
+          const row = document.createElement("div");
+          row.className = "file-row";
+
+          const left = document.createElement("div");
+          left.className = "file-row-left";
+
+          const bi = badgeInfoForEntry(entry);
+          const badge = document.createElement("div");
+          badge.className = "file-badge " + bi.cls;
+          badge.textContent = bi.label;
+
+          const info = document.createElement("div");
+          info.style.minWidth = "0";
+          const name = document.createElement("div");
+          name.className = "file-name";
+          name.textContent = entry.name;
+          const meta = document.createElement("div");
+          meta.className = "file-meta";
+          const dt = entry.lastModifiedMs ? new Date(entry.lastModifiedMs).toLocaleString() : "";
+          meta.textContent = entry.isDirectory
+            ? (entry.sizeBytes + " items · Folder")
+            : (formatBytes(entry.sizeBytes) + " · " + dt);
+          info.appendChild(name);
+          info.appendChild(meta);
+
+          left.appendChild(badge);
+          left.appendChild(info);
+
+          if (entry.isDirectory) {
+            left.addEventListener("click", () => loadFileDirectory(entry.relativePath));
+          } else if (canPreviewEntry(entry)) {
+            left.addEventListener("click", () => openMediaPreview(entry));
+          }
+
+          const actions = document.createElement("div");
+          actions.className = "btn-row";
+
+          if (entry.isDirectory) {
+            const openBtn = document.createElement("button");
+            openBtn.className = "btn-soft";
+            openBtn.type = "button";
+            openBtn.textContent = "Open";
+            openBtn.addEventListener("click", () => loadFileDirectory(entry.relativePath));
+            actions.appendChild(openBtn);
+          } else {
+            if (canPreviewEntry(entry)) {
+              const prevBtn = document.createElement("button");
+              prevBtn.type = "button";
+              prevBtn.textContent = "Preview";
+              prevBtn.addEventListener("click", () => openMediaPreview(entry));
+              actions.appendChild(prevBtn);
+            }
+            const dlBtn = document.createElement("button");
+            dlBtn.className = "btn-soft";
+            dlBtn.type = "button";
+            dlBtn.textContent = "Download";
+            dlBtn.addEventListener("click", () => downloadVaultFile(entry.relativePath, entry.name));
+            actions.appendChild(dlBtn);
+          }
+
+          const delBtn = document.createElement("button");
+          delBtn.className = "btn-danger";
+          delBtn.type = "button";
+          delBtn.textContent = "Delete";
+          delBtn.addEventListener("click", async () => {
+            if (entry.isDirectory && !window.confirm("Delete folder \"" + entry.name + "\" and all its contents?")) return;
+            try {
+              await apiFetch("/api/files?path=" + encodeURIComponent(entry.relativePath), { method: "DELETE" });
+              showToast("Deleted " + entry.name);
+              loadFileDirectory(currentFileDir);
+            } catch (err) { showToast(err.message); }
+          });
+          actions.appendChild(delBtn);
+
+          row.appendChild(left);
+          row.appendChild(actions);
+          list.appendChild(row);
+        });
+      }
+
+      function downloadVaultFile(relPath, fileName) {
+        if (!streamTicket) return;
+        const a = document.createElement("a");
+        a.href = "/api/files/download?path=" + encodeURIComponent(relPath) + "&ticket=" + encodeURIComponent(streamTicket);
+        a.download = fileName || "download";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      }
+
+      // Built-in Range-streaming Media Previewer (Instant 4K video/audio/photo preview)
+      let previewCurrentEntry = null;
+      function openMediaPreview(entry) {
+        if (!streamTicket) return;
+        previewCurrentEntry = entry;
+        $("previewTitle").textContent = entry.name + " (" + formatBytes(entry.sizeBytes) + ")";
+        const body = $("previewBody");
+        body.textContent = "";
+        const url = "/api/files/download?path=" + encodeURIComponent(entry.relativePath) + "&inline=1&ticket=" + encodeURIComponent(streamTicket);
+        const mime = (entry.mimeType || "").toLowerCase();
+        if (mime.startsWith("image/")) {
+          const img = document.createElement("img");
+          img.src = url;
+          img.alt = entry.name;
+          body.appendChild(img);
+        } else if (mime.startsWith("video/")) {
+          const vid = document.createElement("video");
+          vid.src = url;
+          vid.controls = true;
+          vid.autoplay = true;
+          body.appendChild(vid);
+        } else if (mime.startsWith("audio/")) {
+          const aud = document.createElement("audio");
+          aud.src = url;
+          aud.controls = true;
+          aud.autoplay = true;
+          body.appendChild(aud);
+        }
+        $("previewModal").classList.remove("hidden");
+      }
+
+      function closeMediaPreview() {
+        $("previewModal").classList.add("hidden");
+        $("previewBody").textContent = "";
+        previewCurrentEntry = null;
+      }
+      $("previewCloseBtn").addEventListener("click", closeMediaPreview);
+      $("previewDownloadBtn").addEventListener("click", () => {
+        if (previewCurrentEntry) downloadVaultFile(previewCurrentEntry.relativePath, previewCurrentEntry.name);
       });
-      $("remoteTypeInput").addEventListener("keydown", (e) => {
-        if (e.key === "Enter") sendRemoteText(true);
+      $("previewModal").addEventListener("click", (e) => {
+        if (e.target === $("previewModal")) closeMediaPreview();
       });
 
+      // Unlimited-Size High-Speed Multi-File Streaming Upload Queue with Live MB/s Speed
+      function enqueueFilesForUpload(fileList) {
+        const files = Array.from(fileList || []);
+        if (files.length === 0) return;
+        const queueBox = $("uploadQueueContainer");
+        queueBox.classList.remove("hidden");
+
+        files.forEach((file) => {
+          const itemEl = document.createElement("div");
+          itemEl.className = "upload-item";
+
+          const top = document.createElement("div");
+          top.className = "upload-item-top";
+          const titleSpan = document.createElement("span");
+          titleSpan.textContent = file.name + " (" + formatBytes(file.size) + ")";
+          const statsSpan = document.createElement("span");
+          statsSpan.className = "mono";
+          statsSpan.textContent = "Starting...";
+          const cancelBtn = document.createElement("button");
+          cancelBtn.type = "button";
+          cancelBtn.style.minHeight = "26px";
+          cancelBtn.style.padding = "3px 10px";
+          cancelBtn.textContent = "Cancel";
+
+          const rightGroup = document.createElement("div");
+          rightGroup.className = "btn-row";
+          rightGroup.appendChild(statsSpan);
+          rightGroup.appendChild(cancelBtn);
+
+          top.appendChild(titleSpan);
+          top.appendChild(rightGroup);
+
+          const track = document.createElement("div");
+          track.className = "progress-track";
+          const fill = document.createElement("div");
+          fill.className = "progress-fill";
+          track.appendChild(fill);
+
+          itemEl.appendChild(top);
+          itemEl.appendChild(track);
+          queueBox.prepend(itemEl);
+
+          const xhr = new XMLHttpRequest();
+          const startTime = performance.now();
+          const uploadUrl = "/api/files/upload?path=" + encodeURIComponent(currentFileDir) + "&name=" + encodeURIComponent(file.name);
+
+          xhr.open("POST", uploadUrl, true);
+          if (authToken) xhr.setRequestHeader("Authorization", "Bearer " + authToken);
+          xhr.setRequestHeader("Content-Type", "application/octet-stream");
+
+          xhr.upload.onprogress = (evt) => {
+            if (!evt.lengthComputable) return;
+            const pct = Math.min(100, Math.round((evt.loaded / Math.max(1, evt.total)) * 100));
+            const elapsedSec = Math.max(0.05, (performance.now() - startTime) / 1000);
+            const speedBytesPerSec = evt.loaded / elapsedSec;
+            const speedMb = (speedBytesPerSec / (1024 * 1024)).toFixed(1);
+            fill.style.width = pct + "%";
+            statsSpan.textContent = pct + "% · " + formatBytes(evt.loaded) + " · " + speedMb + " MB/s";
+          };
+
+          xhr.onload = () => {
+            cancelBtn.remove();
+            if (xhr.status >= 200 && xhr.status < 300) {
+              const elapsedSec = Math.max(0.05, (performance.now() - startTime) / 1000);
+              const avgMb = (file.size / (1024 * 1024) / elapsedSec).toFixed(1);
+              fill.style.width = "100%";
+              statsSpan.textContent = "Done · " + avgMb + " MB/s";
+              showToast("Uploaded " + file.name);
+              loadFileDirectory(currentFileDir);
+              setTimeout(() => {
+                itemEl.remove();
+                if (queueBox.children.length === 0) queueBox.classList.add("hidden");
+              }, 3500);
+            } else {
+              statsSpan.textContent = "Failed (" + xhr.status + ")";
+              showToast("Upload failed for " + file.name);
+            }
+          };
+
+          xhr.onerror = () => {
+            cancelBtn.remove();
+            statsSpan.textContent = "Network Error";
+            showToast("Network error uploading " + file.name);
+          };
+
+          xhr.onabort = () => {
+            itemEl.remove();
+            if (queueBox.children.length === 0) queueBox.classList.add("hidden");
+            showToast("Cancelled " + file.name);
+          };
+
+          cancelBtn.addEventListener("click", () => xhr.abort());
+          xhr.send(file);
+        });
+      }
+
+      const dropzone = $("fileDropzone");
+      const fileUploadInput = $("fileUploadInput");
+      $("pickUploadFilesBtn").addEventListener("click", (e) => { e.stopPropagation(); fileUploadInput.click(); });
+      dropzone.addEventListener("click", () => fileUploadInput.click());
+      fileUploadInput.addEventListener("change", () => {
+        enqueueFilesForUpload(fileUploadInput.files);
+        fileUploadInput.value = "";
+      });
+      dropzone.addEventListener("dragover", (e) => { e.preventDefault(); dropzone.classList.add("dragover"); });
+      dropzone.addEventListener("dragleave", () => dropzone.classList.remove("dragover"));
+      dropzone.addEventListener("drop", (e) => {
+        e.preventDefault();
+        dropzone.classList.remove("dragover");
+        if (e.dataTransfer && e.dataTransfer.files) enqueueFilesForUpload(e.dataTransfer.files);
+      });
+
+      $("fileFilterInput").addEventListener("input", renderFileEntries);
+      $("reloadFilesBtn").addEventListener("click", () => loadFileDirectory(currentFileDir));
+      $("newFolderBtn").addEventListener("click", () => {
+        $("newFolderRow").classList.remove("hidden");
+        $("newFolderNameInput").focus();
+      });
+      $("createFolderCancelBtn").addEventListener("click", () => {
+        $("newFolderRow").classList.add("hidden");
+        $("newFolderNameInput").value = "";
+      });
+      async function confirmCreateFolder() {
+        const name = $("newFolderNameInput").value.trim();
+        if (!name) return;
+        try {
+          await apiFetch("/api/files/mkdir", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ path: currentFileDir, name: name })
+          });
+          $("newFolderNameInput").value = "";
+          $("newFolderRow").classList.add("hidden");
+          showToast("Created folder " + name);
+          loadFileDirectory(currentFileDir);
+        } catch (e) { showToast(e.message); }
+      }
+      $("createFolderConfirmBtn").addEventListener("click", confirmCreateFolder);
+      $("newFolderNameInput").addEventListener("keydown", (e) => { if (e.key === "Enter") confirmCreateFolder(); });
+
       // ================================================================
-      // SECTION 03: LIVE PHONE SOUND TO LAPTOP (PCM STREAM -> WEB AUDIO)
+      // 04. LIVE PHONE SOUND TO LAPTOP (WEB AUDIO PCM STREAMING)
       // ================================================================
       function updateAudioButtonsUI() {
         $("startPhoneAudioBtn").disabled = audioActive;
         $("stopPhoneAudioBtn").disabled = !audioActive;
-        $("audioStatePill").textContent = audioActive ? (audioMuted ? "Stream: Live (Muted)" : "Stream: Live") : "Stream: Stopped";
-        $("topAudioPill").textContent = audioActive ? (audioMuted ? "Laptop Sound: Muted" : "Laptop Sound: LIVE") : "Laptop Sound: Off";
-        $("topQuickAudioBtn").textContent = audioActive ? "Stop Phone Sound" : "Start Phone Sound";
-        $("topQuickAudioBtn").classList.toggle("active-btn", audioActive);
-        $("mirrorQuickAudioBtn").textContent = audioActive ? "Phone Sound: LIVE (Click to Stop)" : "Phone Sound: Off (Click to Listen)";
-        $("mirrorQuickAudioBtn").classList.toggle("active-btn", audioActive);
+        $("audioStatePill").textContent = audioActive ? (audioMuted ? "Stream: Muted" : "Stream: Live") : "Stream: Stopped";
+        $("audioStatePill").classList.toggle("live", audioActive && !audioMuted);
+        $("topAudioPill").textContent = audioActive ? (audioMuted ? "Audio: Muted" : "Audio: Live") : "Audio: Off";
+        $("topAudioPill").classList.toggle("live", audioActive && !audioMuted);
+        $("topQuickAudioBtn").textContent = audioActive ? "Stop Phone Sound" : "Listen to Phone";
+        $("mirrorQuickAudioBtn").textContent = audioActive ? "Phone Sound: LIVE" : "Phone Sound: Off";
+        $("mirrorQuickAudioBtn").classList.toggle("active-pill", audioActive);
+        $("hudAudioBtn").textContent = audioActive ? "Sound: ON" : "Sound: OFF";
+        $("hudAudioBtn").classList.toggle("active-pill", audioActive);
         $("audioLaptopPlayStat").textContent = audioActive ? (audioMuted ? "Muted" : "Playing on Laptop") : "Idle";
-        $("muteLaptopAudioBtn").textContent = audioMuted ? "Unmute Laptop" : "Mute Laptop";
-        $("muteLaptopAudioBtn").classList.toggle("active-btn", audioMuted);
+        $("muteLaptopAudioBtn").textContent = audioMuted ? "Unmute" : "Mute";
       }
 
       function applyGainValue() {
         $("laptopGainLabel").textContent = audioMuted ? "0% (Muted)" : (audioGainPercent + "%");
         if (audioGainNode && audioCtx) {
-          const target = audioMuted ? 0 : (audioGainPercent / 100);
-          audioGainNode.gain.setTargetAtTime(target, audioCtx.currentTime, 0.02);
+          audioGainNode.gain.setTargetAtTime(audioMuted ? 0 : (audioGainPercent / 100), audioCtx.currentTime, 0.02);
         }
       }
 
       async function startPhoneAudioStream() {
         if (audioActive || !streamTicket) return;
-        const noticeBox = $("audioNoticeBox");
-        noticeBox.classList.add("hidden");
-
+        $("audioNoticeBox").classList.add("hidden");
         try {
           const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
           audioCtx = new AudioContextCtor({ sampleRate: audioSampleRate });
-          if (audioCtx.state === "suspended") {
-            await audioCtx.resume();
-          }
+          if (audioCtx.state === "suspended") await audioCtx.resume();
           audioGainNode = audioCtx.createGain();
           audioAnalyser = audioCtx.createAnalyser();
           audioAnalyser.fftSize = 512;
@@ -1778,13 +2731,9 @@
           audioAbortController = new AbortController();
           const url = "/api/stream/audio?ticket=" + encodeURIComponent(streamTicket) + "&t=" + Date.now();
           const res = await fetch(url, { signal: audioAbortController.signal });
-
           if (!res.ok) {
-            let errText = "Unable to start phone audio stream (" + res.status + ")";
-            try {
-              const j = await res.json();
-              if (j && j.error) errText = j.error;
-            } catch (_) {}
+            let errText = "Phone audio capture is off (" + res.status + ")";
+            try { const j = await res.json(); if (j && j.error) errText = j.error; } catch (_) {}
             throw new Error(errText);
           }
 
@@ -1792,7 +2741,7 @@
           if (srHeader && srHeader >= 8000) audioSampleRate = srHeader;
 
           audioActive = true;
-          audioNextPlayTime = audioCtx.currentTime + 0.06;
+          audioNextPlayTime = audioCtx.currentTime + 0.05;
           updateAudioButtonsUI();
           startAudioWaveVisualizer();
           showToast("Phone sound is now playing on your laptop");
@@ -1813,12 +2762,10 @@
               bytes = merged;
               carryByte = null;
             }
-
             if (bytes.length % 2 === 1) {
               carryByte = bytes[bytes.length - 1];
               bytes = bytes.subarray(0, bytes.length - 1);
             }
-
             const sampleCount = bytes.length / 2;
             if (sampleCount <= 0) continue;
 
@@ -1830,50 +2777,31 @@
             }
 
             const now = audioCtx.currentTime;
-            if (audioNextPlayTime < now + 0.015) {
-              audioNextPlayTime = now + 0.04;
-            } else if (audioNextPlayTime - now > 0.25) {
-              // Drop drift to keep live lip-sync tight
-              audioNextPlayTime = now + 0.05;
-            }
+            if (audioNextPlayTime < now + 0.015) audioNextPlayTime = now + 0.04;
+            else if (audioNextPlayTime - now > 0.24) audioNextPlayTime = now + 0.045;
 
             const src = audioCtx.createBufferSource();
             src.buffer = audioBuffer;
             src.connect(audioGainNode);
             src.start(audioNextPlayTime);
             audioNextPlayTime += audioBuffer.duration;
-            lastAudioLatencyMs = Math.max(0, Math.round((audioNextPlayTime - now) * 1000));
-            $("audioLatencyStat").textContent = lastAudioLatencyMs + " ms";
+            $("audioLatencyStat").textContent = Math.max(0, Math.round((audioNextPlayTime - now) * 1000)) + " ms";
           }
-
-          if (audioActive) {
-            stopPhoneAudioStream("Phone audio stream ended");
-          }
+          if (audioActive) stopPhoneAudioStream("Phone audio stream ended");
         } catch (err) {
           if (err && err.name === "AbortError") return;
           stopPhoneAudioStream();
-          noticeBox.textContent = err.message || "Could not start phone audio stream.";
-          noticeBox.classList.remove("hidden");
-          showToast(err.message || "Audio stream unavailable");
+          $("audioNoticeBox").textContent = err.message || "Audio unavailable";
+          $("audioNoticeBox").classList.remove("hidden");
+          showToast(err.message || "Audio unavailable");
         }
       }
 
       function stopPhoneAudioStream(reason) {
         audioActive = false;
-        if (audioAbortController) {
-          try { audioAbortController.abort(); } catch (_) {}
-          audioAbortController = null;
-        }
-        if (audioCtx) {
-          try { audioCtx.close(); } catch (_) {}
-          audioCtx = null;
-          audioGainNode = null;
-          audioAnalyser = null;
-        }
-        if (audioWaveRafId) {
-          cancelAnimationFrame(audioWaveRafId);
-          audioWaveRafId = null;
-        }
+        if (audioAbortController) { try { audioAbortController.abort(); } catch (_) {} audioAbortController = null; }
+        if (audioCtx) { try { audioCtx.close(); } catch (_) {} audioCtx = null; audioGainNode = null; audioAnalyser = null; }
+        if (audioWaveRafId) { cancelAnimationFrame(audioWaveRafId); audioWaveRafId = null; }
         $("audioLatencyStat").textContent = "-- ms";
         updateAudioButtonsUI();
         drawIdleWave();
@@ -1881,67 +2809,51 @@
       }
 
       function drawIdleWave() {
-        const w = audioWaveCanvas.width;
-        const h = audioWaveCanvas.height;
-        audioWaveCtx.fillStyle = "#FFFFFF";
+        const w = audioWaveCanvas.width, h = audioWaveCanvas.height;
+        audioWaveCtx.fillStyle = "#0B1120";
         audioWaveCtx.fillRect(0, 0, w, h);
-        audioWaveCtx.strokeStyle = "#000000";
+        audioWaveCtx.strokeStyle = "rgba(96,165,250,0.35)";
         audioWaveCtx.lineWidth = 2;
         audioWaveCtx.beginPath();
         audioWaveCtx.moveTo(0, h / 2);
         audioWaveCtx.lineTo(w, h / 2);
         audioWaveCtx.stroke();
-        audioWaveCtx.fillStyle = "#000000";
-        audioWaveCtx.font = "bold 12px monospace";
-        audioWaveCtx.textAlign = "left";
-        audioWaveCtx.fillText("WAVEFORM IDLE — CLICK 'START PHONE SOUND ON LAPTOP'", 14, 22);
+        audioWaveCtx.fillStyle = "#94A3B8";
+        audioWaveCtx.font = "600 13px sans-serif";
+        audioWaveCtx.fillText("LIVE AUDIO WAVEFORM — IDLE", 18, 28);
       }
 
       function startAudioWaveVisualizer() {
         if (audioWaveRafId) cancelAnimationFrame(audioWaveRafId);
         const buf = new Uint8Array(audioAnalyser ? audioAnalyser.fftSize : 256);
-
         function loop() {
-          if (!audioActive || !audioAnalyser) {
-            drawIdleWave();
-            return;
-          }
+          if (!audioActive || !audioAnalyser) { drawIdleWave(); return; }
           audioAnalyser.getByteTimeDomainData(buf);
-          const w = audioWaveCanvas.width;
-          const h = audioWaveCanvas.height;
-          audioWaveCtx.fillStyle = "#FFFFFF";
+          const w = audioWaveCanvas.width, h = audioWaveCanvas.height;
+          audioWaveCtx.fillStyle = "#0B1120";
           audioWaveCtx.fillRect(0, 0, w, h);
 
-          // Center guide
-          audioWaveCtx.strokeStyle = "#000000";
-          audioWaveCtx.lineWidth = 1;
-          audioWaveCtx.setLineDash([4, 4]);
-          audioWaveCtx.beginPath();
-          audioWaveCtx.moveTo(0, h / 2);
-          audioWaveCtx.lineTo(w, h / 2);
-          audioWaveCtx.stroke();
-          audioWaveCtx.setLineDash([]);
+          const grad = audioWaveCtx.createLinearGradient(0, 0, w, 0);
+          grad.addColorStop(0, "#38BDF8");
+          grad.addColorStop(0.5, "#3B82F6");
+          grad.addColorStop(1, "#818CF8");
 
-          // Live black waveform stroke
-          audioWaveCtx.strokeStyle = "#000000";
-          audioWaveCtx.lineWidth = 2.5;
+          audioWaveCtx.strokeStyle = grad;
+          audioWaveCtx.lineWidth = 2.8;
           audioWaveCtx.beginPath();
           const slice = w / buf.length;
           let x = 0;
           for (let i = 0; i < buf.length; i++) {
-            const v = buf[i] / 128.0;
-            const y = (v * h) / 2;
+            const y = ((buf[i] / 128.0) * h) / 2;
             if (i === 0) audioWaveCtx.moveTo(x, y);
             else audioWaveCtx.lineTo(x, y);
             x += slice;
           }
           audioWaveCtx.stroke();
 
-          audioWaveCtx.fillStyle = "#000000";
-          audioWaveCtx.font = "bold 12px monospace";
-          audioWaveCtx.textAlign = "left";
-          audioWaveCtx.fillText("LIVE PHONE AUDIO · " + audioSampleRate + " HZ PCM", 14, 22);
-
+          audioWaveCtx.fillStyle = "#38BDF8";
+          audioWaveCtx.font = "700 12px monospace";
+          audioWaveCtx.fillText("LIVE PCM · " + audioSampleRate + " HZ", 18, 26);
           audioWaveRafId = requestAnimationFrame(loop);
         }
         audioWaveRafId = requestAnimationFrame(loop);
@@ -1949,19 +2861,10 @@
 
       $("startPhoneAudioBtn").addEventListener("click", startPhoneAudioStream);
       $("stopPhoneAudioBtn").addEventListener("click", () => stopPhoneAudioStream("Phone sound stopped"));
-      $("topQuickAudioBtn").addEventListener("click", () => {
-        if (audioActive) stopPhoneAudioStream("Phone sound stopped");
-        else startPhoneAudioStream();
-      });
-      $("mirrorQuickAudioBtn").addEventListener("click", () => {
-        if (audioActive) stopPhoneAudioStream("Phone sound stopped");
-        else startPhoneAudioStream();
-      });
-      $("muteLaptopAudioBtn").addEventListener("click", () => {
-        audioMuted = !audioMuted;
-        applyGainValue();
-        updateAudioButtonsUI();
-      });
+      $("topQuickAudioBtn").addEventListener("click", () => audioActive ? stopPhoneAudioStream("Stopped") : startPhoneAudioStream());
+      $("mirrorQuickAudioBtn").addEventListener("click", () => audioActive ? stopPhoneAudioStream("Stopped") : startPhoneAudioStream());
+      $("hudAudioBtn").addEventListener("click", () => audioActive ? stopPhoneAudioStream("Stopped") : startPhoneAudioStream());
+      $("muteLaptopAudioBtn").addEventListener("click", () => { audioMuted = !audioMuted; applyGainValue(); updateAudioButtonsUI(); });
       $("laptopGainSlider").addEventListener("input", (e) => {
         audioGainPercent = Number(e.target.value);
         if (audioGainPercent > 0 && audioMuted) audioMuted = false;
@@ -1969,12 +2872,9 @@
         updateAudioButtonsUI();
       });
 
-      // Phone Volume & Ringer & Media Controls
       function bindVolumeSlider(sliderId, streamName, labelId) {
         const s = $(sliderId);
-        s.addEventListener("input", () => {
-          $(labelId).textContent = s.value + " / " + s.max;
-        });
+        s.addEventListener("input", () => { $(labelId).textContent = s.value + " / " + s.max; });
         s.addEventListener("change", async () => {
           try {
             await apiFetch("/api/audio/volume", {
@@ -1982,9 +2882,7 @@
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ stream: streamName, level: Number(s.value) })
             });
-          } catch (e) {
-            showToast(e.message);
-          }
+          } catch (e) { showToast(e.message); }
         });
       }
       bindVolumeSlider("volMediaSlider", "media", "volMediaVal");
@@ -2001,10 +2899,8 @@
               body: JSON.stringify({ mode: btn.dataset.mode })
             });
             refreshStatus();
-            showToast("Phone ringer: " + btn.dataset.mode.toUpperCase());
-          } catch (e) {
-            showToast(e.message);
-          }
+            showToast("Ringer: " + btn.dataset.mode.toUpperCase());
+          } catch (e) { showToast(e.message); }
         });
       });
 
@@ -2016,15 +2912,12 @@
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ command: btn.dataset.cmd })
             });
-            showToast("Media: " + btn.textContent);
-          } catch (e) {
-            showToast(e.message);
-          }
+          } catch (e) { showToast(e.message); }
         });
       });
 
       // ================================================================
-      // SECTION 04: APPS LAUNCHER
+      // 05. APPS LAUNCHER
       // ================================================================
       async function loadApps() {
         try {
@@ -2032,46 +2925,44 @@
           cachedApps = data.apps || [];
           renderApps();
           renderGlobalSearch();
-        } catch (e) {
-          showToast(e.message);
-        }
+        } catch (e) { showToast(e.message); }
       }
 
       function renderApps() {
         const q = $("appFilterInput").value.trim().toLowerCase();
-        const filtered = cachedApps.filter((a) =>
-          !q || (a.label || "").toLowerCase().includes(q) || (a.packageName || "").toLowerCase().includes(q)
-        );
+        const filtered = cachedApps.filter((a) => !q || (a.label || "").toLowerCase().includes(q) || (a.packageName || "").toLowerCase().includes(q));
         $("appsCountPill").textContent = filtered.length + " apps";
         const grid = $("appsGrid");
         grid.textContent = "";
-        if (filtered.length === 0) {
-          const msg = document.createElement("div");
-          msg.textContent = "No matching apps found.";
-          grid.appendChild(msg);
-          return;
-        }
-        filtered.forEach((app) => {
+        filtered.forEach((app, idx) => {
           const card = document.createElement("div");
-          card.className = "app-card";
-          const txt = document.createElement("div");
-          txt.className = "app-card-text";
+          card.className = "app-tile";
+
+          const mono = document.createElement("div");
+          mono.className = "app-monogram";
+          mono.style.background = MONOGRAM_COLORS[idx % MONOGRAM_COLORS.length];
+          mono.textContent = (app.label || "A").trim().substring(0, 2).toUpperCase();
+
+          const info = document.createElement("div");
+          info.className = "app-info";
           const name = document.createElement("div");
-          name.className = "app-card-name";
+          name.className = "app-name";
           name.textContent = app.label;
           const pkg = document.createElement("div");
-          pkg.className = "app-card-pkg mono";
+          pkg.className = "app-pkg mono";
           pkg.textContent = app.packageName;
-          txt.appendChild(name);
-          txt.appendChild(pkg);
+          info.appendChild(name);
+          info.appendChild(pkg);
 
-          const openBtn = document.createElement("button");
-          openBtn.type = "button";
-          openBtn.textContent = "Open";
-          openBtn.addEventListener("click", () => launchPhoneApp(app.packageName, app.label));
+          const btn = document.createElement("button");
+          btn.className = "btn-soft";
+          btn.type = "button";
+          btn.textContent = "Open";
+          btn.addEventListener("click", () => launchPhoneApp(app.packageName, app.label));
 
-          card.appendChild(txt);
-          card.appendChild(openBtn);
+          card.appendChild(mono);
+          card.appendChild(info);
+          card.appendChild(btn);
           grid.appendChild(card);
         });
       }
@@ -2083,142 +2974,22 @@
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ packageName: pkg })
           });
-          showToast("Launched " + label + " on phone");
-        } catch (e) {
-          showToast(e.message);
-        }
+          showToast("Launched " + label);
+        } catch (e) { showToast(e.message); }
       }
-
       $("appFilterInput").addEventListener("input", renderApps);
       $("reloadAppsBtn").addEventListener("click", loadApps);
 
       // ================================================================
-      // SECTION 05: FILE TRANSFER VAULT
-      // ================================================================
-      function formatBytes(b) {
-        const n = Number(b || 0);
-        if (n < 1024) return n + " B";
-        if (n < 1024 * 1024) return (n / 1024).toFixed(1) + " KB";
-        return (n / (1024 * 1024)).toFixed(2) + " MB";
-      }
-
-      async function loadFiles() {
-        try {
-          const data = await apiFetch("/api/files");
-          cachedFiles = data.files || [];
-          renderFiles();
-          renderGlobalSearch();
-        } catch (e) {
-          showToast(e.message);
-        }
-      }
-
-      function renderFiles() {
-        $("filesCountPill").textContent = cachedFiles.length + " files";
-        const list = $("filesList");
-        list.textContent = "";
-        if (cachedFiles.length === 0) {
-          const empty = document.createElement("div");
-          empty.className = "list-row";
-          empty.textContent = "Vault is empty. Upload a file from your laptop or add one from your phone.";
-          list.appendChild(empty);
-          return;
-        }
-        cachedFiles.forEach((f) => {
-          const row = document.createElement("div");
-          row.className = "list-row";
-
-          const info = document.createElement("div");
-          info.className = "list-row-info";
-          const title = document.createElement("div");
-          title.className = "list-row-title";
-          title.textContent = f.name;
-          const sub = document.createElement("div");
-          sub.className = "list-row-sub";
-          sub.textContent = formatBytes(f.sizeBytes) + " · " + (f.mimeType || "file");
-          info.appendChild(title);
-          info.appendChild(sub);
-
-          const actions = document.createElement("div");
-          actions.className = "btn-row";
-
-          const dlBtn = document.createElement("button");
-          dlBtn.type = "button";
-          dlBtn.textContent = "Download";
-          dlBtn.addEventListener("click", () => downloadVaultFile(f.name));
-
-          const delBtn = document.createElement("button");
-          delBtn.type = "button";
-          delBtn.textContent = "Delete";
-          delBtn.addEventListener("click", async () => {
-            try {
-              await apiFetch("/api/files?name=" + encodeURIComponent(f.name), { method: "DELETE" });
-              showToast("Deleted " + f.name);
-              loadFiles();
-            } catch (e) {
-              showToast(e.message);
-            }
-          });
-
-          actions.appendChild(dlBtn);
-          actions.appendChild(delBtn);
-          row.appendChild(info);
-          row.appendChild(actions);
-          list.appendChild(row);
-        });
-      }
-
-      function downloadVaultFile(name) {
-        if (!streamTicket) return;
-        const a = document.createElement("a");
-        a.href = "/api/files/download?name=" + encodeURIComponent(name) + "&ticket=" + encodeURIComponent(streamTicket);
-        a.download = name;
-        a.click();
-      }
-
-      $("fileUploadBtn").addEventListener("click", async () => {
-        const input = $("fileUploadInput");
-        if (!input.files || input.files.length === 0) {
-          showToast("Choose a file first");
-          return;
-        }
-        const file = input.files[0];
-        if (file.size > 25 * 1024 * 1024) {
-          showToast("File exceeds 25 MB limit");
-          return;
-        }
-        $("fileUploadBtn").disabled = true;
-        try {
-          const buf = await file.arrayBuffer();
-          await apiFetch("/api/files/upload?name=" + encodeURIComponent(file.name), {
-            method: "POST",
-            headers: { "Content-Type": "application/octet-stream" },
-            body: buf
-          });
-          input.value = "";
-          showToast("Uploaded " + file.name + " to phone");
-          loadFiles();
-        } catch (e) {
-          showToast(e.message);
-        } finally {
-          $("fileUploadBtn").disabled = false;
-        }
-      });
-      $("reloadFilesBtn").addEventListener("click", loadFiles);
-
-      // ================================================================
-      // SECTION 06: CLIPBOARD SYNC
+      // 06. CLIPBOARD SYNC
       // ================================================================
       $("clipPullBtn").addEventListener("click", async () => {
         try {
           const data = await apiFetch("/api/clipboard");
           $("clipTextarea").value = data.text || "";
-          showToast("Pulled phone clipboard");
-        } catch (e) {
-          showToast(e.message);
-        }
+          showToast("Pulled from phone");
+        } catch (e) { showToast(e.message); }
       });
-
       $("clipPushBtn").addEventListener("click", async () => {
         try {
           await apiFetch("/api/clipboard", {
@@ -2226,61 +2997,53 @@
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ text: $("clipTextarea").value })
           });
-          showToast("Sent clipboard to phone");
-        } catch (e) {
-          showToast(e.message);
-        }
+          showToast("Sent to phone clipboard");
+        } catch (e) { showToast(e.message); }
       });
-
       $("clipCopyLocalBtn").addEventListener("click", async () => {
-        try {
-          await navigator.clipboard.writeText($("clipTextarea").value);
-          showToast("Copied to laptop clipboard");
-        } catch (_) {
-          showToast("Browser blocked clipboard write");
-        }
+        try { await navigator.clipboard.writeText($("clipTextarea").value); showToast("Copied to laptop"); }
+        catch (_) { showToast("Browser denied clipboard write"); }
       });
-
-      $("clipClearBtn").addEventListener("click", () => {
-        $("clipTextarea").value = "";
-      });
+      $("clipClearBtn").addEventListener("click", () => { $("clipTextarea").value = ""; });
 
       // ================================================================
-      // SECTION 07: NOTIFICATIONS BRIDGE
+      // 07. NOTIFICATIONS
       // ================================================================
       async function loadNotifications() {
         try {
           const data = await apiFetch("/api/notifications");
+          const items = data.notifications || [];
+          $("navNotifBadge").textContent = String(items.length);
           $("notifBridgePill").textContent = data.connected ? "Bridge: Active" : "Bridge: Off on Phone";
           const list = $("notifsList");
           list.textContent = "";
-          const items = data.notifications || [];
           if (items.length === 0) {
             const empty = document.createElement("div");
-            empty.className = "list-row";
-            empty.textContent = data.connected
-              ? "No active notifications on phone right now."
-              : "Enable Notification Access for DeckLink on your phone to mirror notifications.";
+            empty.className = "card-sub";
+            empty.textContent = data.connected ? "No active notifications on phone." : "Enable Notification Access in Actions and gestures on your phone.";
             list.appendChild(empty);
             return;
           }
           items.forEach((n) => {
             const row = document.createElement("div");
-            row.className = "list-row";
-
+            row.className = "file-row";
+            const left = document.createElement("div");
+            left.className = "file-row-left";
+            const b = document.createElement("div");
+            b.className = "file-badge";
+            b.textContent = (n.appName || "N").substring(0, 2).toUpperCase();
             const info = document.createElement("div");
-            info.className = "list-row-info";
             const title = document.createElement("div");
-            title.className = "list-row-title";
-            title.textContent = "[" + (n.appName || "App") + "] " + (n.title || "Notification");
+            title.className = "file-name";
+            title.textContent = (n.appName || "App") + " · " + (n.title || "Notification");
             const sub = document.createElement("div");
-            sub.className = "list-row-sub";
+            sub.className = "file-meta";
             sub.textContent = n.text || "";
             info.appendChild(title);
             info.appendChild(sub);
-
-            row.appendChild(info);
-
+            left.appendChild(b);
+            left.appendChild(info);
+            row.appendChild(left);
             if (n.isClearable) {
               const btn = document.createElement("button");
               btn.type = "button";
@@ -2293,22 +3056,18 @@
                     body: JSON.stringify({ key: n.key })
                   });
                   loadNotifications();
-                } catch (e) {
-                  showToast(e.message);
-                }
+                } catch (e) { showToast(e.message); }
               });
               row.appendChild(btn);
             }
             list.appendChild(row);
           });
-        } catch (e) {
-          showToast(e.message);
-        }
+        } catch (e) { showToast(e.message); }
       }
       $("reloadNotifsBtn").addEventListener("click", loadNotifications);
 
       // ================================================================
-      // SECTION 08: HARDWARE & MACROS
+      // 08. HARDWARE & MACROS
       // ================================================================
       $("torchToggleBtn").addEventListener("click", async () => {
         const next = !(currentStatus && currentStatus.readiness && currentStatus.readiness.torchEnabled);
@@ -2319,12 +3078,8 @@
             body: JSON.stringify({ enabled: next })
           });
           refreshStatus();
-          showToast(next ? "Flashlight ON" : "Flashlight OFF");
-        } catch (e) {
-          showToast(e.message);
-        }
+        } catch (e) { showToast(e.message); }
       });
-
       $("ringToggleBtn").addEventListener("click", async () => {
         const next = !(currentStatus && currentStatus.readiness && currentStatus.readiness.finderRingActive);
         try {
@@ -2334,12 +3089,8 @@
             body: JSON.stringify({ active: next })
           });
           refreshStatus();
-          showToast(next ? "Ringing phone..." : "Stopped phone ring");
-        } catch (e) {
-          showToast(e.message);
-        }
+        } catch (e) { showToast(e.message); }
       });
-
       $("vibratePingBtn").addEventListener("click", async () => {
         try {
           await apiFetch("/api/device/vibrate", {
@@ -2347,12 +3098,9 @@
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ durationMs: 300 })
           });
-          showToast("Vibrated phone");
-        } catch (e) {
-          showToast(e.message);
-        }
+          showToast("Phone vibrated");
+        } catch (e) { showToast(e.message); }
       });
-
       $("openUrlBtn").addEventListener("click", async () => {
         const url = $("openUrlInput").value.trim();
         if (!url) return;
@@ -2364,11 +3112,8 @@
           });
           $("openUrlInput").value = "";
           showToast("Opened link on phone");
-        } catch (e) {
-          showToast(e.message);
-        }
+        } catch (e) { showToast(e.message); }
       });
-
       async function loadMacros() {
         try {
           const data = await apiFetch("/api/macros");
@@ -2376,47 +3121,43 @@
           list.textContent = "";
           (data.macros || []).forEach((m) => {
             const row = document.createElement("div");
-            row.className = "list-row";
+            row.className = "file-row";
             const info = document.createElement("div");
-            info.className = "list-row-info";
-            const title = document.createElement("div");
-            title.className = "list-row-title";
-            title.textContent = m.title;
-            const sub = document.createElement("div");
-            sub.className = "list-row-sub";
-            sub.textContent = m.subtitle + " — " + m.steps;
-            info.appendChild(title);
-            info.appendChild(sub);
+            info.style.flex = "1";
+            const t = document.createElement("div");
+            t.className = "file-name";
+            t.textContent = m.title;
+            const s = document.createElement("div");
+            s.className = "file-meta";
+            s.textContent = m.subtitle + " — " + m.steps;
+            info.appendChild(t);
+            info.appendChild(s);
 
-            const runBtn = document.createElement("button");
-            runBtn.type = "button";
-            runBtn.textContent = "Run Macro";
-            runBtn.addEventListener("click", async () => {
+            const btn = document.createElement("button");
+            btn.className = "btn-soft";
+            btn.type = "button";
+            btn.textContent = "Run Macro";
+            btn.addEventListener("click", async () => {
               try {
                 const res = await apiFetch("/api/macros/run", {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({ id: m.id })
                 });
-                showToast(res.message || "Macro executed");
+                showToast(res.message || "Macro done");
                 refreshStatus();
-              } catch (e) {
-                showToast(e.message);
-              }
+              } catch (e) { showToast(e.message); }
             });
-
             row.appendChild(info);
-            row.appendChild(runBtn);
+            row.appendChild(btn);
             list.appendChild(row);
           });
-        } catch (e) {
-          showToast(e.message);
-        }
+        } catch (e) { showToast(e.message); }
       }
       $("reloadMacrosBtn").addEventListener("click", loadMacros);
 
       // ================================================================
-      // SECTION 09: UI INSPECTOR
+      // 09. UI INSPECTOR
       // ================================================================
       $("scanUiTreeBtn").addEventListener("click", async () => {
         try {
@@ -2426,28 +3167,29 @@
           const nodes = data.nodes || [];
           if (nodes.length === 0) {
             const empty = document.createElement("div");
-            empty.className = "list-row";
-            empty.textContent = "No interactive elements detected on current phone screen.";
+            empty.className = "card-sub";
+            empty.textContent = "No interactive elements detected on screen.";
             list.appendChild(empty);
             return;
           }
           nodes.forEach((n) => {
             const row = document.createElement("div");
-            row.className = "list-row";
+            row.className = "file-row";
             const info = document.createElement("div");
-            info.className = "list-row-info";
-            const title = document.createElement("div");
-            title.className = "list-row-title";
-            title.textContent = "#" + n.index + " " + n.label;
-            const sub = document.createElement("div");
-            sub.className = "list-row-sub mono";
-            sub.textContent = n.className + " · (" + Number(n.x || 0).toFixed(2) + ", " + Number(n.y || 0).toFixed(2) + ")";
-            info.appendChild(title);
-            info.appendChild(sub);
+            info.style.flex = "1";
+            const t = document.createElement("div");
+            t.className = "file-name";
+            t.textContent = "#" + n.index + " · " + n.label;
+            const s = document.createElement("div");
+            s.className = "file-meta mono";
+            s.textContent = n.className + " · (" + Number(n.x || 0).toFixed(2) + ", " + Number(n.y || 0).toFixed(2) + ")";
+            info.appendChild(t);
+            info.appendChild(s);
 
             const btn = document.createElement("button");
+            btn.className = "btn-soft";
             btn.type = "button";
-            btn.textContent = "Trigger Click";
+            btn.textContent = "Click";
             btn.addEventListener("click", async () => {
               try {
                 await apiFetch("/api/input/node-click", {
@@ -2455,19 +3197,14 @@
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({ index: n.index })
                 });
-                showToast("Clicked #" + n.index);
-              } catch (e) {
-                showToast(e.message);
-              }
+                showToast("Triggered #" + n.index);
+              } catch (e) { showToast(e.message); }
             });
-
             row.appendChild(info);
             row.appendChild(btn);
             list.appendChild(row);
           });
-        } catch (e) {
-          showToast(e.message);
-        }
+        } catch (e) { showToast(e.message); }
       });
 
       window.addEventListener("beforeunload", () => {
@@ -2475,7 +3212,6 @@
         stopMirrorStream();
       });
 
-      // Boot
       updateAudioButtonsUI();
       pingPhone();
     })();
